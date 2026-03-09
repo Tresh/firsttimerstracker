@@ -170,7 +170,7 @@ export default function FirstTimers() {
           </Dialog>
 
           <Button variant="outline" className="gap-2" onClick={() => toast.info("Excel import coming soon!")}>
-            <FileSpreadsheet className="h-4 w-4 text-green-600" />
+            <FileSpreadsheet className="h-4 w-4 text-success" />
             Import Excel
           </Button>
         </div>
