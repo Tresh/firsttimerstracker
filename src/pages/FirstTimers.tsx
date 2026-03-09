@@ -15,7 +15,17 @@ export default function FirstTimers() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    full_name: string;
+    phone_number: string;
+    email: string;
+    gender: string;
+    age_range: string;
+    address: string;
+    location: string;
+    date_of_first_visit: string;
+    service_attended: "Sunday Service" | "Midweek Service" | "Special Program" | "Cell Meeting";
+  }>({
     full_name: "",
     phone_number: "",
     email: "",
