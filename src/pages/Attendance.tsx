@@ -137,7 +137,7 @@ export default function Attendance() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="space-y-2">
               <label className="text-sm font-medium">Service Type</label>
-              <Select value={serviceType} onValueChange={setServiceType}>
+              <Select value={serviceType} onValueChange={(v: any) => setServiceType(v)}>
                 <SelectTrigger className="h-12 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
