@@ -12,7 +12,7 @@ export default function Attendance() {
   const [members, setMembers] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [serviceType, setServiceType] = useState<string>("Sunday Service");
+  const [serviceType, setServiceType] = useState<"Sunday Service" | "Midweek Service" | "Special Program" | "Cell Meeting">("Sunday Service");
   const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [isSaving, setIsSaving] = useState(false);
 
