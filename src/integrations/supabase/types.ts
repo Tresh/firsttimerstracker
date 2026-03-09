@@ -180,11 +180,14 @@ export type Database = {
           email: string | null
           full_name: string
           gender: string | null
+          group_assigned: string | null
           id: string
           invited_by: string | null
+          invited_by_name: string | null
           location: string | null
           phone_number: string | null
           service_attended: Database["public"]["Enums"]["service_type"]
+          started_foundation_school: boolean | null
           status: Database["public"]["Enums"]["member_status"]
           updated_at: string | null
         }
@@ -199,11 +202,14 @@ export type Database = {
           email?: string | null
           full_name: string
           gender?: string | null
+          group_assigned?: string | null
           id?: string
           invited_by?: string | null
+          invited_by_name?: string | null
           location?: string | null
           phone_number?: string | null
           service_attended: Database["public"]["Enums"]["service_type"]
+          started_foundation_school?: boolean | null
           status?: Database["public"]["Enums"]["member_status"]
           updated_at?: string | null
         }
@@ -218,11 +224,14 @@ export type Database = {
           email?: string | null
           full_name?: string
           gender?: string | null
+          group_assigned?: string | null
           id?: string
           invited_by?: string | null
+          invited_by_name?: string | null
           location?: string | null
           phone_number?: string | null
           service_attended?: Database["public"]["Enums"]["service_type"]
+          started_foundation_school?: boolean | null
           status?: Database["public"]["Enums"]["member_status"]
           updated_at?: string | null
         }
