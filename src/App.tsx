@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import FirstTimers from "./pages/FirstTimers";
@@ -29,11 +30,14 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
-            
+
+            {/* Protected Dashboard */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/first-timers" element={<FirstTimers />} />
                 <Route path="/members" element={<Members />} />
                 <Route path="/follow-up" element={<FollowUpTracker />} />

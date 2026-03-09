@@ -1,5 +1,5 @@
 import { 
-  Home, Users, UserPlus, ListTodo, Calendar, 
+  LayoutDashboard, Users, UserPlus, ListTodo, Calendar, 
   Award, Building2, BarChart3, Import, Settings 
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar"
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "First Timers", url: "/first-timers", icon: UserPlus },
   { title: "Members", url: "/members", icon: Users },
   { title: "Follow Up Tracker", url: "/follow-up", icon: ListTodo },
