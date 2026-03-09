@@ -1,0 +1,1 @@
+export default function FoundationSchool() { return <div>Foundation School Content</div> }

@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import FirstTimers from "./pages/FirstTimers";
 import Members from "./pages/Members";
 import FollowUpTracker from "./pages/FollowUpTracker";
+import FoundationSchool from "./pages/FoundationSchool";
 import Attendance from "./pages/Attendance";
 import Leaders from "./pages/Leaders";
 import Departments from "./pages/Departments";
@@ -41,6 +42,7 @@ const App = () => (
                 <Route path="/first-timers" element={<FirstTimers />} />
                 <Route path="/members" element={<Members />} />
                 <Route path="/follow-up" element={<FollowUpTracker />} />
+                <Route path="/foundation-school" element={<FoundationSchool />} />
                 <Route path="/attendance" element={<Attendance />} />
                 <Route path="/leaders" element={<Leaders />} />
                 <Route path="/departments" element={<Departments />} />

@@ -1,6 +1,6 @@
 import { 
   LayoutDashboard, Users, UserPlus, ListTodo, Calendar, 
-  Award, Building2, BarChart3, Import, Settings 
+  Award, Building2, BarChart3, Import, Settings, GraduationCap
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
@@ -20,6 +20,7 @@ const items = [
   { title: "First Timers", url: "/first-timers", icon: UserPlus },
   { title: "Members", url: "/members", icon: Users },
   { title: "Follow Up Tracker", url: "/follow-up", icon: ListTodo },
+  { title: "Foundation School", url: "/foundation-school", icon: GraduationCap },
   { title: "Attendance", url: "/attendance", icon: Calendar },
   { title: "Leaders", url: "/leaders", icon: Award },
   { title: "Departments", url: "/departments", icon: Building2 },
