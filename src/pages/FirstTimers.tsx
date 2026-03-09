@@ -144,7 +144,7 @@ export default function FirstTimers() {
                 </div>
                 <div className="space-y-2">
                   <Label>Service Attended *</Label>
-                  <Select value={formData.service_attended} onValueChange={v => setFormData({...formData, service_attended: v})}>
+                  <Select value={formData.service_attended} onValueChange={v => setFormData({...formData, service_attended: v as any})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Sunday Service">Sunday Service</SelectItem>
