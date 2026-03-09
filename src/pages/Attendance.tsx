@@ -1,0 +1,1 @@
+export default function Attendance() { return <div>Attendance Content</div> }

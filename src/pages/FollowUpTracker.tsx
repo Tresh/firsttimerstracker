@@ -1,0 +1,1 @@
+export default function FollowUpTracker() { return <div>Follow Up Tracker Content</div> }
