@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, Users, UserPlus, ListTodo, Calendar, 
   Award, Building2, BarChart3, Import, Settings, GraduationCap, LogOut,
-  Globe, ClipboardList, MonitorSmartphone
+  Globe, ClipboardList, MonitorSmartphone, ShieldCheck
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
