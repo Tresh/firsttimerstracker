@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, MoreVertical, Search, Users, AlertTriangle, Eye, EyeOff, ShieldCheck, Phone, KeyRound } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
+import { UserPlus, MoreVertical, Search, Users, AlertTriangle, Eye, EyeOff, ShieldCheck, Phone, KeyRound, FlaskConical, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type RoleOption = {
@@ -131,6 +133,12 @@ export default function AdminUsers() {
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [deactivateStaff, setDeactivateStaff] = useState<StaffMember | null>(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
+
+  // Test accounts
+  const [testCreateOpen, setTestCreateOpen] = useState(false);
+  const [testDeleteOpen, setTestDeleteOpen] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testProgress, setTestProgress] = useState("");
 
   const groups = useMemo(() => orgs.filter(o => o.level === "group"), [orgs]);
   const allChurches = useMemo(() => orgs.filter(o => o.level === "church"), [orgs]);
@@ -352,6 +360,59 @@ export default function AdminUsers() {
     }
   }
 
+  // ─── Test Accounts ───
+  async function handleCreateTestAccounts() {
+    setTestLoading(true);
+    setTestProgress("Creating 7 test accounts...");
+    try {
+      const res = await supabase.functions.invoke("manage-test-accounts", {
+        body: { action: "create" },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      const results = res.data?.results || [];
+      const successCount = results.filter((r: any) => r.success).length;
+      const failures = results.filter((r: any) => !r.success);
+
+      if (failures.length > 0) {
+        toast({
+          title: `✅ ${successCount} of 7 test accounts created`,
+          description: `Failed: ${failures.map((f: any) => `${f.email}: ${f.error}`).join(", ")}`,
+          variant: successCount > 0 ? "default" : "destructive",
+        });
+      } else {
+        toast({ title: "✅ 7 test accounts created!", description: "Password for all: Test1234!" });
+      }
+      setTestCreateOpen(false);
+      loadStaff();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setTestLoading(false);
+      setTestProgress("");
+    }
+  }
+
+  async function handleDeleteTestAccounts() {
+    setTestLoading(true);
+    setTestProgress("Deleting test accounts...");
+    try {
+      const res = await supabase.functions.invoke("manage-test-accounts", {
+        body: { action: "delete" },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      toast({ title: "✅ Test accounts deleted", description: `${res.data?.deleted || 0} accounts removed` });
+      setTestDeleteOpen(false);
+      loadStaff();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setTestLoading(false);
+      setTestProgress("");
+    }
+  }
+
   if (pageLoading) {
     return (
       <div className="space-y-6">
@@ -381,9 +442,21 @@ export default function AdminUsers() {
           <h1 className="text-2xl font-display font-bold text-foreground">User Management</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage all staff accounts and roles</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" /> Add Staff Member
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {isKingAdmin && (
+            <>
+              <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setTestDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-1" /> Delete Test Accounts
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTestCreateOpen(true)}>
+                <FlaskConical className="h-4 w-4 mr-1" /> Create Test Accounts
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" /> Add Staff Member
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -625,6 +698,58 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Create Test Accounts Dialog ─── */}
+      <AlertDialog open={testCreateOpen} onOpenChange={setTestCreateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" /> Create Test Accounts
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create 7 test accounts for role testing. All accounts will use the password <strong>Test1234!</strong> and be tagged as test accounts. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {testLoading && (
+            <div className="space-y-2 py-2">
+              <p className="text-sm text-muted-foreground">{testProgress}</p>
+              <Progress value={undefined} className="h-2" />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={testLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreateTestAccounts} disabled={testLoading}>
+              {testLoading ? "Creating..." : "Create All 7 Accounts"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Delete Test Accounts Dialog ─── */}
+      <AlertDialog open={testDeleteOpen} onOpenChange={setTestDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Delete Test Accounts
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all accounts whose email ends in <strong>@test.com</strong> from the system. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {testLoading && (
+            <div className="space-y-2 py-2">
+              <p className="text-sm text-muted-foreground">{testProgress}</p>
+              <Progress value={undefined} className="h-2" />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={testLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTestAccounts} disabled={testLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {testLoading ? "Deleting..." : "Delete All Test Accounts"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
