@@ -447,6 +447,7 @@ export default function AdminUsers() {
     }
   }
 
+  if (pageLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
