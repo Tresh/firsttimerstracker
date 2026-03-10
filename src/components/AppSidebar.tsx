@@ -44,6 +44,7 @@ const pastorNav: NavItem[] = [
   { title: "First Timers", url: "/first-timers", icon: UserPlus },
   { title: "Members", url: "/members", icon: Users },
   { title: "Follow Up", url: "/follow-up", icon: ListTodo },
+  { title: "Call Center", url: "/call-center", icon: Phone },
   { title: "Foundation School", url: "/foundation-school", icon: GraduationCap },
   { title: "Attendance", url: "/attendance", icon: Calendar },
   { title: "EMP Tracker", url: "/emp", icon: MonitorSmartphone },
