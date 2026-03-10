@@ -75,10 +75,12 @@ function StatCard({ icon, label, value, bg, iconColor, valueColor }: {
 // VARIANT 1: King Admin
 // ────────────────────────────────────────────
 function KingAdminDashboard() {
+  const navigate = useNavigate();
   const [members, setMembers] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [orgs, setOrgs] = useState<any[]>([]);
   const [cellLeaderCount, setCellLeaderCount] = useState(0);
+  const [activityFlags, setActivityFlags] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -87,14 +89,21 @@ function KingAdminDashboard() {
       supabase.from("follow_up_tasks").select("*"),
       supabase.from("organizations").select("*"),
       supabase.from("user_roles").select("user_id").eq("role", "cell_leader"),
-    ]).then(([mRes, tRes, oRes, clRes]) => {
+      supabase.from("activity_flags").select("*, profiles:flagged_user_id(full_name)").eq("resolved", false).order("created_at", { ascending: false }).limit(10),
+    ]).then(([mRes, tRes, oRes, clRes, flagsRes]) => {
       setMembers(mRes.data || []);
       setTasks(tRes.data || []);
       setOrgs(oRes.data || []);
       setCellLeaderCount(clRes.data?.length || 0);
+      setActivityFlags(flagsRes.data || []);
       setLoaded(true);
     });
   }, []);
+
+  const dismissFlag = async (flagId: string) => {
+    await supabase.from("activity_flags").update({ resolved: true, resolved_at: new Date().toISOString() }).eq("id", flagId);
+    setActivityFlags(prev => prev.filter(f => f.id !== flagId));
+  };
 
   if (!loaded) return <DashboardSkeleton />;
 
