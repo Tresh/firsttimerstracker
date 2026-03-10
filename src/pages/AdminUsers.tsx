@@ -204,7 +204,7 @@ export default function AdminUsers() {
           full_name: fullName,
           phone_number: phone || null,
           organization_id: orgId || null,
-          role: selectedRole,
+          role: dbRole,
           role_title: roleTitle,
         },
       });
