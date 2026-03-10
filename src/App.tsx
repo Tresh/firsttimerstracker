@@ -22,6 +22,7 @@ import Settings from "./pages/Settings";
 import GlobalCommand from "./pages/GlobalCommand";
 import NotFound from "./pages/NotFound";
 import WelcomeDesk from "./pages/WelcomeDesk";
+import AttendanceScan from "./pages/AttendanceScan";
 
 const queryClient = new QueryClient();
 
