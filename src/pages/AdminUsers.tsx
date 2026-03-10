@@ -698,6 +698,58 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Create Test Accounts Dialog ─── */}
+      <AlertDialog open={testCreateOpen} onOpenChange={setTestCreateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" /> Create Test Accounts
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create 7 test accounts for role testing. All accounts will use the password <strong>Test1234!</strong> and be tagged as test accounts. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {testLoading && (
+            <div className="space-y-2 py-2">
+              <p className="text-sm text-muted-foreground">{testProgress}</p>
+              <Progress value={undefined} className="h-2" />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={testLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreateTestAccounts} disabled={testLoading}>
+              {testLoading ? "Creating..." : "Create All 7 Accounts"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Delete Test Accounts Dialog ─── */}
+      <AlertDialog open={testDeleteOpen} onOpenChange={setTestDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Delete Test Accounts
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all accounts whose email ends in <strong>@test.com</strong> from the system. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {testLoading && (
+            <div className="space-y-2 py-2">
+              <p className="text-sm text-muted-foreground">{testProgress}</p>
+              <Progress value={undefined} className="h-2" />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={testLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTestAccounts} disabled={testLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {testLoading ? "Deleting..." : "Delete All Test Accounts"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
