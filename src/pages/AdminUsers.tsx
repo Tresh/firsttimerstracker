@@ -342,9 +342,13 @@ export default function AdminUsers() {
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
-                  {roleOptions.map((r, i) => (
-                    <SelectItem key={`${r.value}-${i}`} value={`${r.value}__${i}`}>
+                  {roleOptions.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
                       {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
                     </SelectItem>
                   ))}
                 </SelectContent>
