@@ -25,6 +25,7 @@ import EmpTracker from "./pages/EmpTracker";
 import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
 import AdminUsers from "./pages/AdminUsers";
+import ChangePassword from "./pages/ChangePassword";
 
 const queryClient = new QueryClient();
 

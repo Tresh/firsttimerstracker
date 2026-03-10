@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
         phone_number: phone_number || null,
         organization_id: organization_id || null,
         role_title: role_title || null,
+        must_change_password: true,
       })
       .eq("user_id", userId);
 
