@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import EmpTracker from "./pages/EmpTracker";
 import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
+import AdminUsers from "./pages/AdminUsers";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/global" element={<GlobalCommand />} />
                 <Route path="/import" element={<ImportData />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>

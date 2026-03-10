@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, Users, UserPlus, ListTodo, Calendar, 
   Award, Building2, BarChart3, Import, Settings, GraduationCap, LogOut,
-  Globe, ClipboardList, MonitorSmartphone
+  Globe, ClipboardList, MonitorSmartphone, ShieldCheck
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
@@ -33,6 +33,7 @@ const adminNav: NavItem[] = [
   { title: "Departments", url: "/departments", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Global Command", url: "/global", icon: Globe },
+  { title: "User Management", url: "/admin/users", icon: ShieldCheck },
   { title: "Import Data", url: "/import", icon: Import },
   { title: "Settings", url: "/settings", icon: Settings },
 ];

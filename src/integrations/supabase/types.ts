@@ -654,6 +654,9 @@ export type Database = {
         | "church_pastor"
         | "reception_team"
         | "department_head"
+        | "foundation_school_staff"
+        | "foundation_school_leader"
+        | "department_staff"
       baptism_status: "Not Baptized" | "Baptized"
       foundation_school_status: "Not Started" | "In Progress" | "Completed"
       member_prefix:
@@ -816,6 +819,9 @@ export const Constants = {
         "church_pastor",
         "reception_team",
         "department_head",
+        "foundation_school_staff",
+        "foundation_school_leader",
+        "department_staff",
       ],
       baptism_status: ["Not Baptized", "Baptized"],
       foundation_school_status: ["Not Started", "In Progress", "Completed"],
