@@ -75,6 +75,116 @@ export type Database = {
           },
         ]
       }
+      buddy_assignments: {
+        Row: {
+          active: boolean | null
+          assigned_at: string | null
+          assigned_by: string | null
+          buddy_member_id: string
+          first_timer_id: string
+          id: string
+        }
+        Insert: {
+          active?: boolean | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          buddy_member_id: string
+          first_timer_id: string
+          id?: string
+        }
+        Update: {
+          active?: boolean | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          buddy_member_id?: string
+          first_timer_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buddy_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buddy_assignments_buddy_member_id_fkey"
+            columns: ["buddy_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buddy_assignments_first_timer_id_fkey"
+            columns: ["first_timer_id"]
+            isOneToOne: true
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_logs: {
+        Row: {
+          call_timestamp: string | null
+          caller_id: string
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          member_id: string
+          note: string | null
+          outcome: string | null
+          phone_number: string
+          task_id: string | null
+        }
+        Insert: {
+          call_timestamp?: string | null
+          caller_id: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          member_id: string
+          note?: string | null
+          outcome?: string | null
+          phone_number: string
+          task_id?: string | null
+        }
+        Update: {
+          call_timestamp?: string | null
+          caller_id?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          member_id?: string
+          note?: string | null
+          outcome?: string | null
+          phone_number?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_caller_id_fkey"
+            columns: ["caller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "follow_up_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cell_groups: {
         Row: {
           created_at: string | null
@@ -244,36 +354,93 @@ export type Database = {
       }
       follow_up_tasks: {
         Row: {
-          action_name: string
+          assigned_role: string
           assigned_to: string | null
-          completed: boolean | null
+          call_attempted: boolean | null
+          call_duration_seconds: number | null
+          call_note: string | null
+          call_outcome: string | null
+          call_timestamp: string | null
           completed_at: string | null
+          completed_by: string | null
           created_at: string | null
           due_date: string | null
           id: string
+          is_urgent: boolean | null
           member_id: string
+          notes: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          status: string
+          task_category: string
+          task_emoji: string | null
+          task_key: string
+          task_name: string
+          updated_at: string | null
+          urgent_hours: number | null
+          verified_at: string | null
+          verified_by: string | null
           week_number: number
         }
         Insert: {
-          action_name: string
+          assigned_role: string
           assigned_to?: string | null
-          completed?: boolean | null
+          call_attempted?: boolean | null
+          call_duration_seconds?: number | null
+          call_note?: string | null
+          call_outcome?: string | null
+          call_timestamp?: string | null
           completed_at?: string | null
+          completed_by?: string | null
           created_at?: string | null
           due_date?: string | null
           id?: string
+          is_urgent?: boolean | null
           member_id: string
+          notes?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_note?: string | null
+          status?: string
+          task_category: string
+          task_emoji?: string | null
+          task_key: string
+          task_name: string
+          updated_at?: string | null
+          urgent_hours?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
           week_number: number
         }
         Update: {
-          action_name?: string
+          assigned_role?: string
           assigned_to?: string | null
-          completed?: boolean | null
+          call_attempted?: boolean | null
+          call_duration_seconds?: number | null
+          call_note?: string | null
+          call_outcome?: string | null
+          call_timestamp?: string | null
           completed_at?: string | null
+          completed_by?: string | null
           created_at?: string | null
           due_date?: string | null
           id?: string
+          is_urgent?: boolean | null
           member_id?: string
+          notes?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_note?: string | null
+          status?: string
+          task_category?: string
+          task_emoji?: string | null
+          task_key?: string
+          task_name?: string
+          updated_at?: string | null
+          urgent_hours?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
           week_number?: number
         }
         Relationships: [
@@ -285,10 +452,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "follow_up_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "follow_up_tasks_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_tasks_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_tasks_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -301,6 +489,7 @@ export type Database = {
           assigned_follow_up_leader: string | null
           baptism_date: string | null
           baptism_status: Database["public"]["Enums"]["baptism_status"] | null
+          birthday: string | null
           created_at: string | null
           date_of_first_visit: string
           department_joined: string | null
@@ -335,6 +524,7 @@ export type Database = {
           assigned_follow_up_leader?: string | null
           baptism_date?: string | null
           baptism_status?: Database["public"]["Enums"]["baptism_status"] | null
+          birthday?: string | null
           created_at?: string | null
           date_of_first_visit: string
           department_joined?: string | null
@@ -369,6 +559,7 @@ export type Database = {
           assigned_follow_up_leader?: string | null
           baptism_date?: string | null
           baptism_status?: Database["public"]["Enums"]["baptism_status"] | null
+          birthday?: string | null
           created_at?: string | null
           date_of_first_visit?: string
           department_joined?: string | null
@@ -632,6 +823,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_followup_tasks: {
+        Args: { _member_id: string; _registration_date?: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
