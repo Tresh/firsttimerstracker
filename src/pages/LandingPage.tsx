@@ -136,8 +136,7 @@ export default function LandingPage() {
               <span className="gradient-gold">Retain Every Member.</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-up-delay-2">
-              A powerful platform to monitor first-time visitors, manage follow-up journeys, 
-              track retention, and grow the body of Christ — all in one place.
+              Winning and retaining every soul in the year of manifestation.
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 mb-16 animate-fade-up-delay-3">
