@@ -77,6 +77,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "reactivate") {
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "Missing user_id" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await adminClient.auth.admin.updateUser(user_id, {
+        ban_duration: "none",
+      });
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "update_role") {
       if (!user_id || !role) {
         return new Response(JSON.stringify({ error: "Missing user_id or role" }), {
