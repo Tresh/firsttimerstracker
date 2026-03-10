@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, MoreVertical, Search, Users, AlertTriangle, Eye, EyeOff, ShieldCheck, Phone, KeyRound } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
+import { UserPlus, MoreVertical, Search, Users, AlertTriangle, Eye, EyeOff, ShieldCheck, Phone, KeyRound, FlaskConical, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type RoleOption = {
