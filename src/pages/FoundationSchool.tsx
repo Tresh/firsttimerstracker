@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 import {
   GraduationCap, CheckCircle2, Clock, Users, BookOpen,
-  Award, Search, UserPlus, ChevronRight,
+  Award, Search, UserPlus, Lock, QrCode, AlertTriangle, X,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────
@@ -44,6 +47,7 @@ type AttendanceRecord = {
   class_id: string;
   member_id: string;
   attended: boolean;
+  is_manual_override?: boolean;
 };
 
 // ─── Class code → short label ────────────────────────────────
@@ -51,6 +55,9 @@ const classLabels: Record<string, string> = {
   FS1: "FS1", FS2: "FS2", FS3: "FS3", FS4A: "FS4A", FS4B: "FS4B",
   FS5: "FS5", FS6: "FS6", FS7: "FS7", FSEXAM: "EXAM",
 };
+
+const DAY_MAP: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+const DAY_LABEL: Record<string, string> = { sunday: "Sunday", monday: "Monday" };
 
 // ─── Main component ─────────────────────────────────────────
 export default function FoundationSchool() {
@@ -63,7 +70,7 @@ export default function FoundationSchool() {
     role === "erediauwa_admin" || role === "loveworldcity_admin" ||
     role === "youth_teens_admin" || role === "church_pastor" || role === "pastor";
 
-  if (isStaff) return <StaffView profileId={profile?.id ?? null} />;
+  if (isStaff) return <StaffView profileId={profile?.id ?? null} organizationId={organizationId} canOverrideLock={false} />;
   if (isLeader) return <LeaderView role={role} organizationId={organizationId} profileId={profile?.id ?? null} showEnroll={false} />;
   if (isAdmin) return <LeaderView role={role} organizationId={organizationId} profileId={profile?.id ?? null} showEnroll />;
 
@@ -76,14 +83,24 @@ export default function FoundationSchool() {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// VIEW A — FS STAFF: Mark Attendance
+// VIEW A — FS STAFF: Mark Attendance with QR + Day Locking
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function StaffView({ profileId }: { profileId: string | null }) {
+function StaffView({ profileId, organizationId, canOverrideLock }: { profileId: string | null; organizationId: string | null; canOverrideLock: boolean }) {
   const [classes, setClasses] = useState<FSClass[]>([]);
   const [selectedClass, setSelectedClass] = useState<FSClass | null>(null);
   const [students, setStudents] = useState<FSMember[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [examScores, setExamScores] = useState<Record<string, number | "">>({});
+
+  // QR session state
+  const [qrMode, setQrMode] = useState<"choose" | "qr" | "manual">("choose");
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [scanCount, setScanCount] = useState(0);
+  const [scannedStudents, setScannedStudents] = useState<string[]>([]);
+  const [manualReason, setManualReason] = useState("");
+
+  // Day lock override
+  const [overrideDialog, setOverrideDialog] = useState(false);
 
   // Load classes
   useEffect(() => {
@@ -101,34 +118,119 @@ function StaffView({ profileId }: { profileId: string | null }) {
       .then(({ data }) => setStudents((data || []) as FSMember[]));
   }, []);
 
-  // Load attendance for selected class
+  // Load attendance for selected class + reset mode
   useEffect(() => {
     if (!selectedClass) return;
-    supabase.from("foundation_school_attendance").select("id, class_id, member_id, attended")
+    setQrMode("choose");
+    setActiveSession(null);
+    setScanCount(0);
+    setScannedStudents([]);
+    setManualReason("");
+
+    supabase.from("foundation_school_attendance").select("id, class_id, member_id, attended, is_manual_override")
       .eq("class_id", selectedClass.id)
       .then(({ data }) => {
         const map: Record<string, AttendanceRecord> = {};
         (data || []).forEach((r: any) => { map[r.member_id] = r; });
         setAttendance(map);
       });
-    // Reset exam scores
     setExamScores({});
     if (selectedClass.is_exam) {
       students.forEach(s => {
         if (s.fs_exam_score !== null) setExamScores(prev => ({ ...prev, [s.id]: s.fs_exam_score! }));
       });
     }
+
+    // Check for existing active session
+    supabase.from("fs_qr_sessions").select("*").eq("class_id", selectedClass.id).eq("is_active", true).limit(1).single()
+      .then(({ data }) => {
+        if (data) {
+          setActiveSession(data);
+          setQrMode("qr");
+        }
+      });
   }, [selectedClass, students]);
+
+  // Poll scan count when QR session is active
+  useEffect(() => {
+    if (!activeSession) return;
+    const poll = setInterval(async () => {
+      const { data, count } = await supabase.from("fs_qr_scans").select("id, members(full_name)", { count: "exact" })
+        .eq("session_id", activeSession.id);
+      setScanCount(count || 0);
+      setScannedStudents((data || []).map((d: any) => d.members?.full_name || "Unknown"));
+    }, 5000);
+    // Initial fetch
+    supabase.from("fs_qr_scans").select("id, members(full_name)", { count: "exact" })
+      .eq("session_id", activeSession.id).then(({ data, count }) => {
+        setScanCount(count || 0);
+        setScannedStudents((data || []).map((d: any) => d.members?.full_name || "Unknown"));
+      });
+    return () => clearInterval(poll);
+  }, [activeSession]);
+
+  // Day locking
+  const todayDay = new Date().getDay();
+  const isClassDay = selectedClass?.scheduled_day ? DAY_MAP[selectedClass.scheduled_day] === todayDay : true;
+  const isLocked = !isClassDay && !canOverrideLock;
+
+  const handleGenerateQR = async () => {
+    if (!selectedClass || !profileId) return;
+    const qrCode = crypto.randomUUID();
+    const { data, error } = await supabase.from("fs_qr_sessions").insert([{
+      class_id: selectedClass.id,
+      generated_by: profileId,
+      qr_code: qrCode,
+      organization_id: organizationId,
+      is_active: true,
+    }]).select().single();
+    if (error) { toast.error(error.message); return; }
+    setActiveSession(data);
+    setQrMode("qr");
+    toast.success("QR session started!");
+  };
+
+  const handleOverrideAndGenerate = async () => {
+    // Flag the override
+    if (profileId) {
+      await supabase.from("activity_flags").insert([{
+        flagged_user_id: profileId,
+        flag_type: "outside_hours",
+        description: `Opened ${selectedClass?.class_code} attendance outside scheduled day (${selectedClass?.scheduled_day})`,
+        severity: "medium",
+      }]);
+    }
+    setOverrideDialog(false);
+    await handleGenerateQR();
+  };
+
+  const handleCloseSession = async () => {
+    if (!activeSession) return;
+    await supabase.from("fs_qr_sessions").update({ is_active: false, closed_at: new Date().toISOString() }).eq("id", activeSession.id);
+    // Refresh attendance
+    if (selectedClass) {
+      const { data } = await supabase.from("foundation_school_attendance").select("id, class_id, member_id, attended, is_manual_override")
+        .eq("class_id", selectedClass.id);
+      const map: Record<string, AttendanceRecord> = {};
+      (data || []).forEach((r: any) => { map[r.member_id] = r; });
+      setAttendance(map);
+    }
+    setActiveSession(null);
+    setQrMode("choose");
+    toast.success(`Session closed! ${scanCount} students scanned.`);
+  };
 
   const toggleAttendance = async (memberId: string, attended: boolean) => {
     if (!selectedClass || !profileId) return;
+    const isManual = qrMode === "manual";
     const { data, error } = await supabase.from("foundation_school_attendance").upsert({
       class_id: selectedClass.id,
       member_id: memberId,
       attended,
       marked_by: profileId,
       marked_at: new Date().toISOString(),
-    }, { onConflict: "class_id,member_id" }).select("id, class_id, member_id, attended").single();
+      is_manual_override: isManual,
+    }, { onConflict: "class_id,member_id" }).select("id, class_id, member_id, attended, is_manual_override").single();
 
     if (error) { toast.error(error.message); return; }
     setAttendance(prev => ({ ...prev, [memberId]: data as AttendanceRecord }));
@@ -136,20 +238,30 @@ function StaffView({ profileId }: { profileId: string | null }) {
 
   const markAllPresent = async () => {
     if (!selectedClass || !profileId) return;
+    const isManual = qrMode === "manual";
     const rows = students.map(s => ({
       class_id: selectedClass.id,
       member_id: s.id,
       attended: true,
       marked_by: profileId,
       marked_at: new Date().toISOString(),
+      is_manual_override: isManual,
     }));
     const { error } = await supabase.from("foundation_school_attendance").upsert(rows, { onConflict: "class_id,member_id" });
     if (error) { toast.error(error.message); return; }
-    // Refresh
-    const { data } = await supabase.from("foundation_school_attendance").select("id, class_id, member_id, attended").eq("class_id", selectedClass.id);
+    const { data } = await supabase.from("foundation_school_attendance").select("id, class_id, member_id, attended, is_manual_override").eq("class_id", selectedClass.id);
     const map: Record<string, AttendanceRecord> = {};
     (data || []).forEach((r: any) => { map[r.member_id] = r; });
     setAttendance(map);
+
+    if (isManual) {
+      await supabase.from("activity_flags").insert([{
+        flagged_user_id: profileId,
+        flag_type: "bulk_marking",
+        description: `Bulk marked all ${students.length} students present for ${selectedClass.class_code} (manual override)`,
+        severity: "high",
+      }]);
+    }
     toast.success("All students marked present ✓");
   };
 
@@ -161,6 +273,7 @@ function StaffView({ profileId }: { profileId: string | null }) {
   };
 
   const presentCount = students.filter(s => attendance[s.id]?.attended).length;
+  const qrUrl = activeSession ? `https://cebz1retention.site/fs-scan?token=${activeSession.qr_code}` : "";
 
   return (
     <div className="space-y-6">
@@ -171,97 +284,213 @@ function StaffView({ profileId }: { profileId: string | null }) {
 
       {/* Class selector — horizontal scroll */}
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-        {classes.map(c => (
-          <button
-            key={c.id}
-            onClick={() => setSelectedClass(c)}
-            className={`flex-shrink-0 px-4 py-3 rounded-xl text-left transition-all border ${
-              selectedClass?.id === c.id
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-primary/20"
-            }`}
-          >
-            <p className="text-sm font-bold">{classLabels[c.class_code] || c.class_code}</p>
-            <p className="text-xs mt-0.5 max-w-[120px] truncate">{c.class_title}</p>
-          </button>
-        ))}
+        {classes.map(c => {
+          const classDay = c.scheduled_day ? DAY_MAP[c.scheduled_day] === todayDay : true;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setSelectedClass(c)}
+              className={`flex-shrink-0 px-4 py-3 rounded-xl text-left transition-all border relative ${
+                selectedClass?.id === c.id
+                  ? "bg-primary/15 border-primary/40 text-primary"
+                  : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-primary/20"
+              }`}
+            >
+              <p className="text-sm font-bold">{classLabels[c.class_code] || c.class_code}</p>
+              <p className="text-xs mt-0.5 max-w-[120px] truncate">{c.class_title}</p>
+              {!classDay && <Lock className="h-3 w-3 absolute top-2 right-2 text-warning" />}
+            </button>
+          );
+        })}
       </div>
 
       {selectedClass && (
         <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              <span className="text-success font-bold">{presentCount}</span> of {students.length} present
-            </p>
-            <Button size="sm" variant="outline" onClick={markAllPresent} className="gap-2">
-              <CheckCircle2 className="h-4 w-4" /> Mark All Present
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            {students.length === 0 ? (
+          {/* Day lock check */}
+          {isLocked ? (
+            <Card className="border-warning/30">
+              <CardContent className="p-6 text-center space-y-3">
+                <Lock className="h-12 w-12 text-warning mx-auto" />
+                <h3 className="font-display font-bold text-foreground text-lg">🔒 Class Locked</h3>
+                <p className="text-muted-foreground">
+                  This class is scheduled for <span className="font-bold text-foreground">{DAY_LABEL[selectedClass.scheduled_day || ""] || selectedClass.scheduled_day}</span>. Come back then to open attendance.
+                </p>
+                <Button variant="outline" size="sm" disabled className="opacity-50">
+                  <QrCode className="h-4 w-4 mr-2" /> Generate QR Code
+                </Button>
+              </CardContent>
+            </Card>
+          ) : qrMode === "choose" ? (
+            /* Choose mode */
+            <Card>
+              <CardContent className="p-6 space-y-4 text-center">
+                {!isClassDay && canOverrideLock && (
+                  <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 text-sm text-warning font-medium">
+                    ⚠️ This class is scheduled for {DAY_LABEL[selectedClass.scheduled_day || ""] || selectedClass.scheduled_day}. Opening will be flagged.
+                  </div>
+                )}
+                <Button
+                  className="w-full h-14 text-base font-bold gap-2"
+                  onClick={() => {
+                    if (!isClassDay && canOverrideLock) {
+                      setOverrideDialog(true);
+                    } else {
+                      handleGenerateQR();
+                    }
+                  }}
+                >
+                  <QrCode className="h-5 w-5" /> 📱 Generate QR Code for This Class
+                </Button>
+                <button
+                  className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
+                  onClick={() => setQrMode("manual")}
+                >
+                  Mark Manually (requires reason)
+                </button>
+              </CardContent>
+            </Card>
+          ) : qrMode === "qr" && activeSession ? (
+            /* QR Mode — show QR + live counter */
+            <div className="space-y-4">
               <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  <GraduationCap className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>No enrolled students found.</p>
+                <CardContent className="p-6 text-center space-y-4">
+                  <h3 className="font-display font-bold text-foreground text-lg">
+                    {classLabels[selectedClass.class_code]} — {selectedClass.class_title}
+                  </h3>
+                  <div className="flex justify-center">
+                    <div className="bg-white p-4 rounded-2xl">
+                      <QRCodeSVG value={qrUrl} size={220} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground break-all">{qrUrl}</p>
+
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+                    </span>
+                    <span className="text-success font-bold text-lg">{scanCount} students scanned</span>
+                  </div>
+
+                  <Button variant="destructive" className="w-full h-12 text-base font-bold" onClick={handleCloseSession}>
+                    Close Session
+                  </Button>
                 </CardContent>
               </Card>
-            ) : students.map(s => {
-              const isPresent = attendance[s.id]?.attended || false;
-              return (
-                <Card key={s.id}>
-                  <CardContent className="p-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
-                        {s.full_name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground text-[15px]">{s.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{s.phone_number || "No phone"}</p>
-                      </div>
-                      <Switch
-                        checked={isPresent}
-                        onCheckedChange={(checked) => toggleAttendance(s.id, checked)}
-                      />
-                    </div>
 
-                    {/* Exam fields */}
-                    {selectedClass.is_exam && (
-                      <div className="flex items-center gap-3 mt-3 pl-[52px]">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          placeholder="Score"
-                          className="w-24 h-9"
-                          value={examScores[s.id] ?? s.fs_exam_score ?? ""}
-                          onChange={e => setExamScores(prev => ({ ...prev, [s.id]: e.target.value === "" ? "" : Number(e.target.value) }))}
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const v = examScores[s.id];
-                            if (v === "" || v === undefined) return;
-                            saveExamScore(s.id, Number(v));
-                          }}
-                        >
-                          Save
-                        </Button>
-                        {s.fs_exam_score !== null && (
-                          <Badge className={s.fs_exam_passed ? "bg-success/15 text-success border-success/30" : "bg-destructive/15 text-destructive border-destructive/30"}>
-                            {s.fs_exam_passed ? "Pass ✅" : "Fail ❌"}
-                          </Badge>
-                        )}
+              {/* Live scanned students */}
+              {scannedStudents.length > 0 && (
+                <Card>
+                  <CardContent className="p-4 space-y-2">
+                    <h4 className="font-semibold text-foreground text-sm">Scanned Students</h4>
+                    {scannedStudents.map((name, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-success/10">
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                        <span className="text-sm text-foreground">{name}</span>
                       </div>
-                    )}
+                    ))}
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          ) : qrMode === "manual" ? (
+            /* Manual Mode */
+            <div className="space-y-4">
+              <Card className="border-warning/30">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-warning" />
+                    <p className="font-semibold text-warning text-sm">Manual Override Mode</p>
+                  </div>
+                  <Textarea
+                    placeholder="Why are you marking manually? (required)"
+                    value={manualReason}
+                    onChange={e => setManualReason(e.target.value)}
+                    className="min-h-[60px]"
+                  />
+                  {!manualReason.trim() && (
+                    <p className="text-xs text-destructive">Please provide a reason before marking attendance.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {manualReason.trim() && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-success font-bold">{presentCount}</span> of {students.length} present
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { setQrMode("choose"); setManualReason(""); }}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={markAllPresent} className="gap-2">
+                        <CheckCircle2 className="h-4 w-4" /> Mark All Present
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {students.map(s => {
+                      const isPresent = attendance[s.id]?.attended || false;
+                      return (
+                        <Card key={s.id}>
+                          <CardContent className="p-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
+                                {s.full_name.charAt(0)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground text-[15px]">{s.full_name}</p>
+                                <p className="text-xs text-muted-foreground">{s.phone_number || "No phone"}</p>
+                              </div>
+                              <Switch checked={isPresent} onCheckedChange={(checked) => toggleAttendance(s.id, checked)} />
+                            </div>
+                            {selectedClass.is_exam && (
+                              <div className="flex items-center gap-3 mt-3 pl-[52px]">
+                                <Input type="number" min={0} max={100} placeholder="Score" className="w-24 h-9"
+                                  value={examScores[s.id] ?? s.fs_exam_score ?? ""}
+                                  onChange={e => setExamScores(prev => ({ ...prev, [s.id]: e.target.value === "" ? "" : Number(e.target.value) }))}
+                                />
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  const v = examScores[s.id];
+                                  if (v === "" || v === undefined) return;
+                                  saveExamScore(s.id, Number(v));
+                                }}>Save</Button>
+                                {s.fs_exam_score !== null && (
+                                  <Badge className={s.fs_exam_passed ? "bg-success/15 text-success border-success/30" : "bg-destructive/15 text-destructive border-destructive/30"}>
+                                    {s.fs_exam_passed ? "Pass ✅" : "Fail ❌"}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
         </>
       )}
+
+      {/* Override confirmation dialog */}
+      <Dialog open={overrideDialog} onOpenChange={setOverrideDialog}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" /> Override Day Lock
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Open attendance outside the scheduled day? This will be flagged in the activity log.
+          </p>
+          <div className="flex gap-3 mt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setOverrideDialog(false)}>Cancel</Button>
+            <Button variant="destructive" className="flex-1" onClick={handleOverrideAndGenerate}>Open Anyway</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -285,11 +514,9 @@ function LeaderView({
   const [searchStudent, setSearchStudent] = useState("");
 
   const fetchData = useCallback(async () => {
-    // Classes
     const { data: classData } = await supabase.from("foundation_school_classes").select("*").order("class_number");
     setClasses((classData || []) as FSClass[]);
 
-    // All members (scoped)
     let q = supabase.from("members").select("id, full_name, phone_number, organization_id, fs_enrolled, fs_classes_completed, fs_exam_score, fs_exam_passed, fs_graduated, fs_graduation_date, status").order("full_name");
     q = scopeQuery(q, role as any, organizationId);
     const { data: memberData } = await q;
@@ -297,28 +524,29 @@ function LeaderView({
     setEnrolled(all.filter(m => m.fs_enrolled));
     setUnenrolled(all.filter(m => !m.fs_enrolled));
 
-    // All attendance records
-    const { data: attData } = await supabase.from("foundation_school_attendance").select("class_id, member_id, attended").eq("attended", true);
+    const { data: attData } = await supabase.from("foundation_school_attendance").select("class_id, member_id, attended, is_manual_override").eq("attended", true);
     setAllAttendance(attData || []);
   }, [role, organizationId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Stats
   const totalEnrolled = enrolled.length;
   const avgCompleted = totalEnrolled > 0 ? Math.round(enrolled.reduce((sum, m) => sum + (m.fs_classes_completed || 0), 0) / totalEnrolled) : 0;
   const examPassed = enrolled.filter(m => m.fs_exam_passed).length;
   const graduated = enrolled.filter(m => m.fs_graduated).length;
   const pendingGrad = enrolled.filter(m => m.fs_exam_passed && !m.fs_graduated).length;
 
-  // Per-member attendance map: memberId -> set of class_ids attended
   const memberAttMap: Record<string, Set<string>> = {};
+  const memberManualMap: Record<string, Set<string>> = {};
   allAttendance.forEach((a: any) => {
     if (!memberAttMap[a.member_id]) memberAttMap[a.member_id] = new Set();
     memberAttMap[a.member_id].add(a.class_id);
+    if (a.is_manual_override) {
+      if (!memberManualMap[a.member_id]) memberManualMap[a.member_id] = new Set();
+      memberManualMap[a.member_id].add(a.class_id);
+    }
   });
 
-  // Class attendance counts
   const classAttCounts: Record<string, number> = {};
   allAttendance.forEach((a: any) => {
     classAttCounts[a.class_id] = (classAttCounts[a.class_id] || 0) + 1;
@@ -342,19 +570,13 @@ function LeaderView({
 
   const graduateStudent = async (student: FSMember) => {
     await supabase.from("members").update({ fs_graduated: true, fs_graduation_date: new Date().toISOString().split("T")[0] } as any).eq("id", student.id);
-    // Mark graduation follow-up task as done
     await supabase.from("follow_up_tasks").update({ status: "done", completed_at: new Date().toISOString() }).eq("member_id", student.id).eq("task_key", "week6_status_upgrade").eq("status", "pending");
     toast.success(`🎓 ${student.full_name} has graduated from Foundation School!`);
     fetchData();
   };
 
-  const filteredEnrolled = enrolled.filter(m =>
-    m.full_name.toLowerCase().includes(searchStudent.toLowerCase())
-  );
-
-  const filteredUnenrolled = unenrolled.filter(m =>
-    m.full_name.toLowerCase().includes(searchEnroll.toLowerCase())
-  );
+  const filteredEnrolled = enrolled.filter(m => m.full_name.toLowerCase().includes(searchStudent.toLowerCase()));
+  const filteredUnenrolled = unenrolled.filter(m => m.full_name.toLowerCase().includes(searchEnroll.toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -365,16 +587,14 @@ function LeaderView({
         <p className="text-muted-foreground mt-1">Track enrollment, attendance & graduation</p>
       </div>
 
-      {/* TOP STATS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard icon={<Users className="h-5 w-5 text-primary" />} label="Enrolled" value={totalEnrolled} color="primary" />
-        <StatCard icon={<BookOpen className="h-5 w-5 text-info" />} label="Avg Classes" value={avgCompleted} color="info" />
-        <StatCard icon={<CheckCircle2 className="h-5 w-5 text-success" />} label="Exam Passed" value={examPassed} color="success" />
-        <StatCard icon={<GraduationCap className="h-5 w-5 text-accent" />} label="Graduated" value={graduated} color="accent" />
-        <StatCard icon={<Clock className="h-5 w-5 text-warning" />} label="Pending Grad" value={pendingGrad} color="warning" />
+        <FSStatCard icon={<Users className="h-5 w-5 text-primary" />} label="Enrolled" value={totalEnrolled} color="primary" />
+        <FSStatCard icon={<BookOpen className="h-5 w-5 text-info" />} label="Avg Classes" value={avgCompleted} color="info" />
+        <FSStatCard icon={<CheckCircle2 className="h-5 w-5 text-success" />} label="Exam Passed" value={examPassed} color="success" />
+        <FSStatCard icon={<GraduationCap className="h-5 w-5 text-accent" />} label="Graduated" value={graduated} color="accent" />
+        <FSStatCard icon={<Clock className="h-5 w-5 text-warning" />} label="Pending Grad" value={pendingGrad} color="warning" />
       </div>
 
-      {/* ENROLL STUDENTS — Admin only */}
       {showEnroll && (
         <Card>
           <CardContent className="p-5 space-y-4">
@@ -389,12 +609,7 @@ function LeaderView({
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search members to enroll..."
-                className="pl-9 h-10"
-                value={searchEnroll}
-                onChange={e => setSearchEnroll(e.target.value)}
-              />
+              <Input placeholder="Search members to enroll..." className="pl-9 h-10" value={searchEnroll} onChange={e => setSearchEnroll(e.target.value)} />
             </div>
             <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
               {filteredUnenrolled.length === 0 ? (
@@ -418,24 +633,19 @@ function LeaderView({
         </Card>
       )}
 
-      {/* STUDENT PROGRESS TABLE */}
       <Card>
         <CardContent className="p-5 space-y-4">
           <h3 className="font-display font-bold text-foreground">Student Progress</h3>
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search students..."
-              className="pl-9 h-10"
-              value={searchStudent}
-              onChange={e => setSearchStudent(e.target.value)}
-            />
+            <Input placeholder="Search students..." className="pl-9 h-10" value={searchStudent} onChange={e => setSearchStudent(e.target.value)} />
           </div>
           <div className="space-y-2">
             {filteredEnrolled.length === 0 ? (
               <p className="text-center py-8 text-sm text-muted-foreground">No enrolled students found</p>
             ) : filteredEnrolled.map(s => {
               const attended = memberAttMap[s.id] || new Set();
+              const manualClasses = memberManualMap[s.id] || new Set();
               const attCount = attended.size;
               const progressPct = Math.round((attCount / Math.max(classes.length, 1)) * 100);
 
@@ -464,19 +674,24 @@ function LeaderView({
                       ) : null}
                     </div>
                   </div>
-
-                  {/* Class dots + progress bar */}
                   <div className="pl-[52px] space-y-1.5">
                     <div className="flex gap-1">
-                      {classes.map(c => (
-                        <div
-                          key={c.id}
-                          title={`${c.class_code}: ${attended.has(c.id) ? "Attended" : "Not yet"}`}
-                          className={`h-2.5 w-2.5 rounded-full ${attended.has(c.id) ? "bg-success" : "bg-muted"}`}
-                        />
-                      ))}
+                      {classes.map(c => {
+                        const isAttended = attended.has(c.id);
+                        const isManual = manualClasses.has(c.id);
+                        return (
+                          <div
+                            key={c.id}
+                            title={`${c.class_code}: ${isAttended ? (isManual ? "Manual Override" : "Attended") : "Not yet"}`}
+                            className={`h-2.5 w-2.5 rounded-full ${isAttended ? (isManual ? "bg-warning" : "bg-success") : "bg-muted"}`}
+                          />
+                        );
+                      })}
                     </div>
                     <Progress value={progressPct} className="h-1.5" />
+                    {manualClasses.size > 0 && (
+                      <p className="text-xs text-warning font-medium">⚠️ {manualClasses.size} manual override{manualClasses.size > 1 ? "s" : ""}</p>
+                    )}
                   </div>
                 </div>
               );
@@ -485,7 +700,6 @@ function LeaderView({
         </CardContent>
       </Card>
 
-      {/* CLASS BREAKDOWN */}
       <Card>
         <CardContent className="p-5 space-y-3">
           <h3 className="font-display font-bold text-foreground">Class Breakdown</h3>
@@ -512,7 +726,7 @@ function LeaderView({
 }
 
 // ─── Stat Card ───────────────────────────────────────────────
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+function FSStatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   return (
     <Card>
       <CardContent className="p-4 flex items-center gap-3">

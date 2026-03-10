@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import {
   Phone, MessageCircle, CheckCircle2, Clock, AlertTriangle,
   Users, ClipboardCheck, Bell, ChevronDown, XCircle,
-  Shield, BarChart3, X
+  Shield, BarChart3, X, Camera, MapPin, Edit3, Image
 } from "lucide-react";
 import { formatDistanceToNow, format, startOfWeek, isToday, isYesterday, isBefore } from "date-fns";
 
@@ -250,10 +251,151 @@ function CellLeaderView() {
       }]);
     }
 
+    // Anti-gaming: check if 5+ tasks done in last 3 minutes
+    await checkBulkCompletion();
+
     toast.success("Task marked as done — waiting for verification");
     setTaskDialog(null);
     setTaskNote("");
     fetchData();
+  };
+
+  // Photo proof for house visits
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [proofMode, setProofMode] = useState<"choose" | "photo" | "gps" | "manual" | null>(null);
+  const [manualOverrideReason, setManualOverrideReason] = useState("");
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  const handleVisitPhotoProof = async (task: any, file: File) => {
+    if (!profile?.id) return;
+    setUploadingProof(true);
+    try {
+      const path = `visits/${task.id}/${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage.from("task-proofs").upload(path, file);
+      if (uploadErr) { toast.error("Upload failed: " + uploadErr.message); setUploadingProof(false); return; }
+      const { data: urlData } = supabase.storage.from("task-proofs").getPublicUrl(path);
+      const photoUrl = urlData.publicUrl;
+
+      // Get GPS
+      let lat: number | null = null, lng: number | null = null, acc: number | null = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
+        lat = pos.coords.latitude; lng = pos.coords.longitude; acc = pos.coords.accuracy;
+      } catch { /* GPS unavailable */ }
+
+      // Insert proof
+      const { data: proof } = await supabase.from("task_proof").insert([{
+        task_id: task.id,
+        uploaded_by: profile.id,
+        proof_type: "photo",
+        photo_url: photoUrl,
+        latitude: lat,
+        longitude: lng,
+        gps_accuracy: acc,
+      }]).select("id").single();
+
+      // Update task
+      await supabase.from("follow_up_tasks").update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+        completed_by: profile.id,
+        proof_id: proof?.id,
+        notes: taskNote || null,
+      }).eq("id", task.id);
+
+      await checkBulkCompletion();
+      toast.success("✅ Visit logged with photo proof!");
+      setTaskDialog(null); setTaskNote(""); setProofMode(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Error");
+    }
+    setUploadingProof(false);
+  };
+
+  const handleVisitGPSOnly = async (task: any) => {
+    if (!profile?.id) return;
+    setUploadingProof(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
+      const { data: proof } = await supabase.from("task_proof").insert([{
+        task_id: task.id,
+        uploaded_by: profile.id,
+        proof_type: "gps",
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        gps_accuracy: pos.coords.accuracy,
+      }]).select("id").single();
+
+      await supabase.from("follow_up_tasks").update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+        completed_by: profile.id,
+        proof_id: proof?.id,
+        notes: taskNote || null,
+      }).eq("id", task.id);
+
+      await checkBulkCompletion();
+      toast.success("✅ Visit logged with GPS!");
+      setTaskDialog(null); setTaskNote(""); setProofMode(null);
+      fetchData();
+    } catch {
+      toast.error("Could not get GPS location");
+    }
+    setUploadingProof(false);
+  };
+
+  const handleVisitManual = async (task: any) => {
+    if (!profile?.id || !manualOverrideReason.trim()) return;
+    setUploadingProof(true);
+
+    const { data: proof } = await supabase.from("task_proof").insert([{
+      task_id: task.id,
+      uploaded_by: profile.id,
+      proof_type: "manual",
+      is_manual_override: true,
+      override_reason: manualOverrideReason,
+    }]).select("id").single();
+
+    await supabase.from("follow_up_tasks").update({
+      status: "done",
+      completed_at: new Date().toISOString(),
+      completed_by: profile.id,
+      is_manual_override: true,
+      override_reason: manualOverrideReason,
+      proof_id: proof?.id,
+      notes: taskNote || null,
+    }).eq("id", task.id);
+
+    // Flag it
+    const member = members.find(m => m.id === task.member_id);
+    await supabase.from("activity_flags").insert([{
+      flagged_user_id: profile.id,
+      flag_type: "no_proof",
+      description: `${profile.full_name} marked house visit for ${member?.full_name || "unknown"} without proof`,
+      severity: "medium",
+    }]);
+
+    await checkBulkCompletion();
+    toast.success("Visit marked (no proof — flagged for review)");
+    setTaskDialog(null); setTaskNote(""); setProofMode(null); setManualOverrideReason("");
+    fetchData();
+    setUploadingProof(false);
+  };
+
+  const checkBulkCompletion = async () => {
+    if (!profile?.id) return;
+    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const { count } = await supabase.from("follow_up_tasks").select("id", { count: "exact" })
+      .eq("completed_by", profile.id).gte("completed_at", threeMinAgo);
+    if ((count || 0) >= 5) {
+      await supabase.from("activity_flags").insert([{
+        flagged_user_id: profile.id,
+        flag_type: "too_fast",
+        description: `${profile.full_name} completed ${count} tasks in under 3 minutes`,
+        severity: "high",
+      }]);
+    }
   };
 
   const statusDot = (s: "overdue" | "due_today" | "on_track") =>
@@ -496,19 +638,80 @@ function CellLeaderView() {
         )}
       </div>
 
+      {/* Hidden file input for photo proof */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && taskDialog) handleVisitPhotoProof(taskDialog, file);
+          e.target.value = "";
+        }}
+      />
+
       {/* Task completion — fixed bottom panel */}
       {taskDialog && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => { setTaskDialog(null); setTaskNote(""); setProofMode(null); setManualOverrideReason(""); }}>
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative bg-card border-t border-border rounded-t-2xl p-6 pb-8 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <button className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
+            <button className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => { setTaskDialog(null); setTaskNote(""); setProofMode(null); setManualOverrideReason(""); }}>
               <X className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-3 pr-8">
               <span className="text-3xl">{taskDialog.task_emoji || "📋"}</span>
               <p className="text-lg font-bold text-foreground">{taskDialog.task_name}</p>
             </div>
-            {taskDialog.task_category === "call" ? (
+
+            {/* HOUSE VISIT TASKS */}
+            {taskDialog.task_category === "visit" ? (
+              proofMode === null || proofMode === "choose" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">How would you like to log this visit?</p>
+                  <button
+                    className="w-full h-14 rounded-xl bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingProof}
+                  >
+                    <Camera className="h-5 w-5" /> 📸 Take Photo as Proof
+                  </button>
+                  <button
+                    className="w-full h-14 rounded-xl bg-primary/15 text-primary text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                    onClick={() => handleVisitGPSOnly(taskDialog)}
+                    disabled={uploadingProof}
+                  >
+                    <MapPin className="h-5 w-5" /> 📍 Use GPS Only
+                  </button>
+                  <button
+                    className="text-sm text-muted-foreground underline hover:text-foreground transition-colors text-center w-full"
+                    onClick={() => setProofMode("manual")}
+                  >
+                    ✏️ Mark Without Proof (explain why)
+                  </button>
+                  {uploadingProof && <p className="text-center text-sm text-muted-foreground">Uploading...</p>}
+                </div>
+              ) : proofMode === "manual" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-warning font-medium">⚠️ No proof provided — this will be flagged for review.</p>
+                  <Textarea
+                    placeholder="Why can't you provide proof? (required)"
+                    value={manualOverrideReason}
+                    onChange={e => setManualOverrideReason(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                  <Button
+                    className="w-full h-12"
+                    disabled={!manualOverrideReason.trim() || uploadingProof}
+                    onClick={() => handleVisitManual(taskDialog)}
+                  >
+                    Submit Without Proof
+                  </Button>
+                  <button className="text-sm text-muted-foreground underline text-center w-full" onClick={() => setProofMode("choose")}>Back</button>
+                </div>
+              ) : null
+            ) : taskDialog.task_category === "call" ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">How did the call go?</p>
                 <button className="w-full h-14 rounded-xl gradient-primary text-primary-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80" onClick={() => handleMarkDone(taskDialog, "answered")}>✅ Answered</button>
@@ -740,8 +943,13 @@ function StaffView() {
         <CardContent className="space-y-3">
           {filteredVerification.length === 0 ? (
             <p className="text-center text-muted-foreground py-6">No tasks waiting for verification 🎉</p>
-          ) : filteredVerification.map(task => (
-            <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
+          ) : filteredVerification.map(task => {
+            const hasProof = task.proof_id;
+            const isVisit = task.task_category === "visit";
+            const isManualOverride = task.is_manual_override;
+            return (
+            <div key={task.id} className="p-3 rounded-xl bg-secondary/30 space-y-2">
+              <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
                 {getMemberName(task.member_id).charAt(0)}
               </div>
@@ -758,8 +966,21 @@ function StaffView() {
                 <Button size="sm" className="bg-success hover:bg-success/80 text-success-foreground" onClick={() => handleVerify(task)}>✓ Verify</Button>
                 <Button size="sm" variant="destructive" onClick={() => setRejectDialog(task)}>✗ Reject</Button>
               </div>
+              </div>
+              {/* Proof display for visit tasks */}
+              {isVisit && isManualOverride && (
+                <div className="ml-[52px] bg-warning/10 border border-warning/30 rounded-lg p-2">
+                  <p className="text-xs text-warning font-medium">⚠️ No proof provided — {task.override_reason || "No reason given"}</p>
+                </div>
+              )}
+              {isVisit && hasProof && !isManualOverride && (
+                <div className="ml-[52px] text-xs text-muted-foreground">
+                  <span className="text-success font-medium">📸 Photo proof attached</span>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 
