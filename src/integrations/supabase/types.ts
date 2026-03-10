@@ -17,27 +17,39 @@ export type Database = {
       attendance: {
         Row: {
           created_at: string | null
-          date: string
           id: string
+          is_first_timer: boolean | null
           logged_by: string | null
-          member_id: string
-          service_type: Database["public"]["Enums"]["service_type"]
+          member_id: string | null
+          phone_number: string | null
+          scan_method: string
+          scanned_at: string | null
+          service_id: string
+          verified: boolean | null
         }
         Insert: {
           created_at?: string | null
-          date: string
           id?: string
+          is_first_timer?: boolean | null
           logged_by?: string | null
-          member_id: string
-          service_type: Database["public"]["Enums"]["service_type"]
+          member_id?: string | null
+          phone_number?: string | null
+          scan_method?: string
+          scanned_at?: string | null
+          service_id: string
+          verified?: boolean | null
         }
         Update: {
           created_at?: string | null
-          date?: string
           id?: string
+          is_first_timer?: boolean | null
           logged_by?: string | null
-          member_id?: string
-          service_type?: Database["public"]["Enums"]["service_type"]
+          member_id?: string | null
+          phone_number?: string | null
+          scan_method?: string
+          scanned_at?: string | null
+          service_id?: string
+          verified?: boolean | null
         }
         Relationships: [
           {
@@ -54,6 +66,13 @@ export type Database = {
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendance_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cell_groups: {
@@ -63,6 +82,7 @@ export type Database = {
           leader_id: string | null
           location: string | null
           name: string
+          organization_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -70,6 +90,7 @@ export type Database = {
           leader_id?: string | null
           location?: string | null
           name: string
+          organization_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -77,6 +98,7 @@ export type Database = {
           leader_id?: string | null
           location?: string | null
           name?: string
+          organization_id?: string | null
         }
         Relationships: [
           {
@@ -84,6 +106,13 @@ export type Database = {
             columns: ["leader_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cell_groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -94,23 +123,119 @@ export type Database = {
           id: string
           leader_id: string | null
           name: string
+          organization_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           leader_id?: string | null
           name: string
+          organization_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           leader_id?: string | null
           name?: string
+          organization_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "departments_leader_id_fkey"
             columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emp_attendance: {
+        Row: {
+          created_at: string | null
+          emp_display_name: string
+          id: string
+          match_method: string | null
+          matched: boolean | null
+          member_id: string | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          emp_display_name: string
+          id?: string
+          match_method?: string | null
+          matched?: boolean | null
+          member_id?: string | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          emp_display_name?: string
+          id?: string
+          match_method?: string | null
+          matched?: boolean | null
+          member_id?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emp_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emp_attendance_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "emp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emp_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          imported_by: string | null
+          matched_count: number | null
+          raw_csv: string | null
+          session_date: string
+          total_count: number | null
+          unmatched_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          imported_by?: string | null
+          matched_count?: number | null
+          raw_csv?: string | null
+          session_date: string
+          total_count?: number | null
+          unmatched_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          imported_by?: string | null
+          matched_count?: number | null
+          raw_csv?: string | null
+          session_date?: string
+          total_count?: number | null
+          unmatched_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emp_sessions_imported_by_fkey"
+            columns: ["imported_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -174,20 +299,32 @@ export type Database = {
           age_range: string | null
           assigned_cell_group: string | null
           assigned_follow_up_leader: string | null
+          baptism_date: string | null
+          baptism_status: Database["public"]["Enums"]["baptism_status"] | null
           created_at: string | null
           date_of_first_visit: string
           department_joined: string | null
           email: string | null
+          emp_display_name: string | null
+          foundation_school_end: string | null
+          foundation_school_start: string | null
+          foundation_school_status:
+            | Database["public"]["Enums"]["foundation_school_status"]
+            | null
           full_name: string
           gender: string | null
           group_assigned: string | null
           id: string
           invited_by: string | null
           invited_by_name: string | null
+          kingschat_name: string | null
+          kingschat_phone: string | null
           location: string | null
+          organization_id: string | null
           phone_number: string | null
+          prefix: Database["public"]["Enums"]["member_prefix"] | null
+          registered_by: string | null
           service_attended: Database["public"]["Enums"]["service_type"]
-          started_foundation_school: boolean | null
           status: Database["public"]["Enums"]["member_status"]
           updated_at: string | null
         }
@@ -196,20 +333,32 @@ export type Database = {
           age_range?: string | null
           assigned_cell_group?: string | null
           assigned_follow_up_leader?: string | null
+          baptism_date?: string | null
+          baptism_status?: Database["public"]["Enums"]["baptism_status"] | null
           created_at?: string | null
           date_of_first_visit: string
           department_joined?: string | null
           email?: string | null
+          emp_display_name?: string | null
+          foundation_school_end?: string | null
+          foundation_school_start?: string | null
+          foundation_school_status?:
+            | Database["public"]["Enums"]["foundation_school_status"]
+            | null
           full_name: string
           gender?: string | null
           group_assigned?: string | null
           id?: string
           invited_by?: string | null
           invited_by_name?: string | null
+          kingschat_name?: string | null
+          kingschat_phone?: string | null
           location?: string | null
+          organization_id?: string | null
           phone_number?: string | null
+          prefix?: Database["public"]["Enums"]["member_prefix"] | null
+          registered_by?: string | null
           service_attended: Database["public"]["Enums"]["service_type"]
-          started_foundation_school?: boolean | null
           status?: Database["public"]["Enums"]["member_status"]
           updated_at?: string | null
         }
@@ -218,20 +367,32 @@ export type Database = {
           age_range?: string | null
           assigned_cell_group?: string | null
           assigned_follow_up_leader?: string | null
+          baptism_date?: string | null
+          baptism_status?: Database["public"]["Enums"]["baptism_status"] | null
           created_at?: string | null
           date_of_first_visit?: string
           department_joined?: string | null
           email?: string | null
+          emp_display_name?: string | null
+          foundation_school_end?: string | null
+          foundation_school_start?: string | null
+          foundation_school_status?:
+            | Database["public"]["Enums"]["foundation_school_status"]
+            | null
           full_name?: string
           gender?: string | null
           group_assigned?: string | null
           id?: string
           invited_by?: string | null
           invited_by_name?: string | null
+          kingschat_name?: string | null
+          kingschat_phone?: string | null
           location?: string | null
+          organization_id?: string | null
           phone_number?: string | null
+          prefix?: Database["public"]["Enums"]["member_prefix"] | null
+          registered_by?: string | null
           service_attended?: Database["public"]["Enums"]["service_type"]
-          started_foundation_school?: boolean | null
           status?: Database["public"]["Enums"]["member_status"]
           updated_at?: string | null
         }
@@ -262,6 +423,20 @@ export type Database = {
             columns: ["invited_by"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -301,13 +476,47 @@ export type Database = {
           },
         ]
       }
+      organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          level: Database["public"]["Enums"]["org_level"]
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["org_level"]
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["org_level"]
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string | null
           full_name: string
           id: string
+          organization_id: string | null
           phone_number: string | null
+          role_title: string | null
           updated_at: string | null
           user_id: string
         }
@@ -316,7 +525,9 @@ export type Database = {
           created_at?: string | null
           full_name: string
           id?: string
+          organization_id?: string | null
           phone_number?: string | null
+          role_title?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -325,11 +536,75 @@ export type Database = {
           created_at?: string | null
           full_name?: string
           id?: string
+          organization_id?: string | null
           phone_number?: string | null
+          role_title?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          organization_id: string
+          qr_code: string
+          service_date: string
+          service_name: string | null
+          service_type: string
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          qr_code?: string
+          service_date: string
+          service_name?: string | null
+          service_type?: string
+          valid_from: string
+          valid_until: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          qr_code?: string
+          service_date?: string
+          service_name?: string | null
+          service_type?: string
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -361,15 +636,42 @@ export type Database = {
         }
         Returns: boolean
       }
+      member_completeness: {
+        Args: { member_row: Database["public"]["Tables"]["members"]["Row"] }
+        Returns: number
+      }
     }
     Enums: {
-      app_role: "admin" | "pastor" | "cell_leader" | "follow_up_team"
+      app_role:
+        | "admin"
+        | "pastor"
+        | "cell_leader"
+        | "follow_up_team"
+        | "king_admin"
+        | "erediauwa_admin"
+        | "loveworldcity_admin"
+        | "youth_teens_admin"
+        | "church_pastor"
+        | "reception_team"
+        | "department_head"
+      baptism_status: "Not Baptized" | "Baptized"
+      foundation_school_status: "Not Started" | "In Progress" | "Completed"
+      member_prefix:
+        | "Brother"
+        | "Sister"
+        | "Pastor"
+        | "Deacon"
+        | "Deaconess"
+        | "Evang"
+        | "Dr"
+        | "Prof"
       member_status:
         | "First Timer"
         | "Second Timer"
         | "New Convert"
         | "Member"
         | "Worker"
+      org_level: "group" | "church"
       service_type:
         | "Sunday Service"
         | "Midweek Service"
@@ -502,7 +804,31 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "pastor", "cell_leader", "follow_up_team"],
+      app_role: [
+        "admin",
+        "pastor",
+        "cell_leader",
+        "follow_up_team",
+        "king_admin",
+        "erediauwa_admin",
+        "loveworldcity_admin",
+        "youth_teens_admin",
+        "church_pastor",
+        "reception_team",
+        "department_head",
+      ],
+      baptism_status: ["Not Baptized", "Baptized"],
+      foundation_school_status: ["Not Started", "In Progress", "Completed"],
+      member_prefix: [
+        "Brother",
+        "Sister",
+        "Pastor",
+        "Deacon",
+        "Deaconess",
+        "Evang",
+        "Dr",
+        "Prof",
+      ],
       member_status: [
         "First Timer",
         "Second Timer",
@@ -510,6 +836,7 @@ export const Constants = {
         "Member",
         "Worker",
       ],
+      org_level: ["group", "church"],
       service_type: [
         "Sunday Service",
         "Midweek Service",
