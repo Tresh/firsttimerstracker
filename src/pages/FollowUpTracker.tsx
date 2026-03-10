@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Phone, MessageCircle, CheckCircle2, Clock, AlertTriangle,
   Users, ClipboardCheck, Bell, ChevronDown, ChevronUp, XCircle,
-  Shield, BarChart3
+  Shield, BarChart3, X
 } from "lucide-react";
 import { formatDistanceToNow, format, startOfWeek, isToday, isBefore } from "date-fns";
 
