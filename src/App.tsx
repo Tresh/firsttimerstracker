@@ -21,6 +21,7 @@ import ImportData from "./pages/ImportData";
 import Settings from "./pages/Settings";
 import GlobalCommand from "./pages/GlobalCommand";
 import NotFound from "./pages/NotFound";
+import WelcomeDesk from "./pages/WelcomeDesk";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route element={<ProtectedRoute />}>
+              <Route path="/welcome-desk" element={<WelcomeDesk />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/first-timers" element={<FirstTimers />} />
