@@ -192,6 +192,7 @@ export default function AdminUsers() {
     try {
       const orgId = showChurch || showCell || showDept ? selectedChurch : showGroup ? selectedGroup : null;
       const roleTitle = roleOptions.find((r) => r.value === selectedRole)?.label || selectedRole;
+      const dbRole = roleToDbRole[selectedRole] || selectedRole;
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
