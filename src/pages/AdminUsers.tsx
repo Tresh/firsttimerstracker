@@ -452,6 +452,9 @@ export default function AdminUsers() {
               <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setTestDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete Test Accounts
               </Button>
+               <Button variant="outline" size="sm" onClick={() => setAssignTestOpen(true)}>
+                <Users className="h-4 w-4 mr-1" /> Assign Test Members
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setTestCreateOpen(true)}>
                 <FlaskConical className="h-4 w-4 mr-1" /> Create Test Accounts
               </Button>
