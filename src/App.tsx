@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import RoleGuard from "./components/RoleGuard";
 import Layout from "./components/Layout";
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
@@ -29,6 +30,10 @@ import ChangePassword from "./pages/ChangePassword";
 
 const queryClient = new QueryClient();
 
+const ADMIN_ALL = ["king_admin", "admin", "erediauwa_admin", "loveworldcity_admin", "youth_teens_admin"];
+const PASTORS = ["church_pastor", "pastor"];
+const ADMIN_PASTOR = [...ADMIN_ALL, ...PASTORS];
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -42,22 +47,82 @@ const App = () => (
             <Route path="/attend" element={<AttendanceScan />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<ProtectedRoute />}>
-              <Route path="/welcome-desk" element={<WelcomeDesk />} />
+              <Route path="/welcome-desk" element={
+                <RoleGuard allowedRoles={["reception_team", "king_admin", "admin"]}>
+                  <WelcomeDesk />
+                </RoleGuard>
+              } />
               <Route element={<Layout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/first-timers" element={<FirstTimers />} />
-                <Route path="/members" element={<Members />} />
-                <Route path="/follow-up" element={<FollowUpTracker />} />
-                <Route path="/foundation-school" element={<FoundationSchool />} />
-                <Route path="/attendance" element={<Attendance />} />
-                <Route path="/emp" element={<EmpTracker />} />
-                <Route path="/leaders" element={<Leaders />} />
-                <Route path="/departments" element={<Departments />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/global" element={<GlobalCommand />} />
-                <Route path="/import" element={<ImportData />} />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/dashboard" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "follow_up_team"]}>
+                    <Dashboard />
+                  </RoleGuard>
+                } />
+                <Route path="/first-timers" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "reception_team", "follow_up_team"]}>
+                    <FirstTimers />
+                  </RoleGuard>
+                } />
+                <Route path="/members" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "cell_leader", "follow_up_team", "department_head", "department_staff"]}>
+                    <Members />
+                  </RoleGuard>
+                } />
+                <Route path="/follow-up" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "cell_leader", "follow_up_team"]}>
+                    <FollowUpTracker />
+                  </RoleGuard>
+                } />
+                <Route path="/foundation-school" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "foundation_school_staff", "foundation_school_leader"]}>
+                    <FoundationSchool />
+                  </RoleGuard>
+                } />
+                <Route path="/attendance" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "cell_leader"]}>
+                    <Attendance />
+                  </RoleGuard>
+                } />
+                <Route path="/emp" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "cell_leader", "follow_up_team"]}>
+                    <EmpTracker />
+                  </RoleGuard>
+                } />
+                <Route path="/leaders" element={
+                  <RoleGuard allowedRoles={ADMIN_PASTOR}>
+                    <Leaders />
+                  </RoleGuard>
+                } />
+                <Route path="/departments" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "department_head", "department_staff"]}>
+                    <Departments />
+                  </RoleGuard>
+                } />
+                <Route path="/analytics" element={
+                  <RoleGuard allowedRoles={ADMIN_PASTOR}>
+                    <Analytics />
+                  </RoleGuard>
+                } />
+                <Route path="/global" element={
+                  <RoleGuard allowedRoles={["king_admin", "admin"]}>
+                    <GlobalCommand />
+                  </RoleGuard>
+                } />
+                <Route path="/import" element={
+                  <RoleGuard allowedRoles={ADMIN_PASTOR}>
+                    <ImportData />
+                  </RoleGuard>
+                } />
+                <Route path="/admin/users" element={
+                  <RoleGuard allowedRoles={ADMIN_PASTOR}>
+                    <AdminUsers />
+                  </RoleGuard>
+                } />
+                <Route path="/settings" element={
+                  <RoleGuard allowedRoles={["king_admin", "admin"]}>
+                    <Settings />
+                  </RoleGuard>
+                } />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
