@@ -22,6 +22,7 @@ type NavItem = { title: string; url: string; icon: any };
 
 const adminNav: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Welcome Desk", url: "/welcome-desk", icon: ClipboardList },
   { title: "First Timers", url: "/first-timers", icon: UserPlus },
   { title: "Members", url: "/members", icon: Users },
   { title: "Follow Up", url: "/follow-up", icon: ListTodo },
