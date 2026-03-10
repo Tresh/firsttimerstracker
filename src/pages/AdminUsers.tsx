@@ -140,6 +140,10 @@ export default function AdminUsers() {
   const [testLoading, setTestLoading] = useState(false);
   const [testProgress, setTestProgress] = useState("");
 
+  // Assign test members
+  const [assignTestOpen, setAssignTestOpen] = useState(false);
+  const [assignTestLoading, setAssignTestLoading] = useState(false);
+
   const groups = useMemo(() => orgs.filter(o => o.level === "group"), [orgs]);
   const allChurches = useMemo(() => orgs.filter(o => o.level === "church"), [orgs]);
   const getChurches = (groupId: string) => groupId ? allChurches.filter(c => c.parent_id === groupId) : allChurches;
@@ -413,7 +417,36 @@ export default function AdminUsers() {
     }
   }
 
-  if (pageLoading) {
+  async function handleAssignTestMembers() {
+    setAssignTestLoading(true);
+    try {
+      // Find Test Cell Leader profile
+      const { data: profile, error: profileErr } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("full_name", "Test Cell Leader")
+        .single();
+      if (profileErr || !profile) throw new Error("Test Cell Leader profile not found. Create test accounts first.");
+
+      // Update all First Timers
+      const { data: updated, error: updateErr } = await supabase
+        .from("members")
+        .update({ assigned_follow_up_leader: profile.id })
+        .eq("status", "First Timer")
+        .select("id");
+      if (updateErr) throw new Error(updateErr.message);
+
+      const count = updated?.length ?? 0;
+      toast({ title: `✅ ${count} first timers assigned to Test Cell Leader!` });
+      setAssignTestOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setAssignTestLoading(false);
+    }
+  }
+
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
@@ -447,6 +480,9 @@ export default function AdminUsers() {
             <>
               <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setTestDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-1" /> Delete Test Accounts
+              </Button>
+               <Button variant="outline" size="sm" onClick={() => setAssignTestOpen(true)}>
+                <Users className="h-4 w-4 mr-1" /> Assign Test Members
               </Button>
               <Button variant="outline" size="sm" onClick={() => setTestCreateOpen(true)}>
                 <FlaskConical className="h-4 w-4 mr-1" /> Create Test Accounts
@@ -746,6 +782,26 @@ export default function AdminUsers() {
             <AlertDialogCancel disabled={testLoading}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteTestAccounts} disabled={testLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {testLoading ? "Deleting..." : "Delete All Test Accounts"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Assign Test Members Dialog ─── */}
+      <AlertDialog open={assignTestOpen} onOpenChange={setAssignTestOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" /> Assign Test Members
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will assign all existing first timers to the <strong>Test Cell Leader</strong> account so you can test the cell leader experience. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={assignTestLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAssignTestMembers} disabled={assignTestLoading}>
+              {assignTestLoading ? "Assigning..." : "Assign First Timers"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
