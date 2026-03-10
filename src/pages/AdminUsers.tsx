@@ -134,6 +134,12 @@ export default function AdminUsers() {
   const [deactivateStaff, setDeactivateStaff] = useState<StaffMember | null>(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
+  // Test accounts
+  const [testCreateOpen, setTestCreateOpen] = useState(false);
+  const [testDeleteOpen, setTestDeleteOpen] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testProgress, setTestProgress] = useState("");
+
   const groups = useMemo(() => orgs.filter(o => o.level === "group"), [orgs]);
   const allChurches = useMemo(() => orgs.filter(o => o.level === "church"), [orgs]);
   const getChurches = (groupId: string) => groupId ? allChurches.filter(c => c.parent_id === groupId) : allChurches;
