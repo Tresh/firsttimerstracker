@@ -1,6 +1,7 @@
 import { 
   LayoutDashboard, Users, UserPlus, ListTodo, Calendar, 
-  Award, Building2, BarChart3, Import, Settings, GraduationCap, LogOut
+  Award, Building2, BarChart3, Import, Settings, GraduationCap, LogOut,
+  Globe, ClipboardList, MonitorSmartphone
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import {
@@ -15,35 +16,109 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { KingsRetentionLogo } from "@/components/KingsRetentionLogo"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth, type AppRole } from "@/contexts/AuthContext"
 
-const items = [
+type NavItem = { title: string; url: string; icon: any };
+
+const adminNav: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "First Timers", url: "/first-timers", icon: UserPlus },
   { title: "Members", url: "/members", icon: Users },
   { title: "Follow Up", url: "/follow-up", icon: ListTodo },
   { title: "Foundation School", url: "/foundation-school", icon: GraduationCap },
   { title: "Attendance", url: "/attendance", icon: Calendar },
+  { title: "EMP Tracker", url: "/emp", icon: MonitorSmartphone },
   { title: "Leaders", url: "/leaders", icon: Award },
   { title: "Departments", url: "/departments", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Global Command", url: "/global", icon: LayoutDashboard },
+  { title: "Global Command", url: "/global", icon: Globe },
   { title: "Import Data", url: "/import", icon: Import },
   { title: "Settings", url: "/settings", icon: Settings },
-]
+];
+
+const pastorNav: NavItem[] = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "First Timers", url: "/first-timers", icon: UserPlus },
+  { title: "Members", url: "/members", icon: Users },
+  { title: "Follow Up", url: "/follow-up", icon: ListTodo },
+  { title: "Foundation School", url: "/foundation-school", icon: GraduationCap },
+  { title: "Attendance", url: "/attendance", icon: Calendar },
+  { title: "EMP Tracker", url: "/emp", icon: MonitorSmartphone },
+  { title: "Leaders", url: "/leaders", icon: Award },
+  { title: "Departments", url: "/departments", icon: Building2 },
+  { title: "Analytics", url: "/analytics", icon: BarChart3 },
+];
+
+const cellLeaderNav: NavItem[] = [
+  { title: "My Members", url: "/members", icon: Users },
+  { title: "Follow Up Tasks", url: "/follow-up", icon: ListTodo },
+  { title: "Attendance", url: "/attendance", icon: Calendar },
+  { title: "EMP Tracker", url: "/emp", icon: MonitorSmartphone },
+];
+
+const receptionNav: NavItem[] = [
+  { title: "Welcome Desk", url: "/welcome-desk", icon: ClipboardList },
+  { title: "Today's Registrations", url: "/first-timers", icon: UserPlus },
+];
+
+const deptHeadNav: NavItem[] = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "My Department", url: "/departments", icon: Building2 },
+  { title: "Members", url: "/members", icon: Users },
+  { title: "Attendance", url: "/attendance", icon: Calendar },
+];
+
+function getNavItems(role: AppRole | null): NavItem[] {
+  if (!role) return adminNav;
+  if (role === "king_admin" || role === "admin") return adminNav;
+  if (role === "erediauwa_admin" || role === "loveworldcity_admin" || role === "youth_teens_admin") return adminNav;
+  if (role === "church_pastor" || role === "pastor") return pastorNav;
+  if (role === "reception_team") return receptionNav;
+  if (role === "cell_leader" || role === "follow_up_team") return cellLeaderNav;
+  if (role === "department_head") return deptHeadNav;
+  return adminNav;
+}
+
+const roleLabels: Record<string, string> = {
+  king_admin: "👑 King Admin",
+  admin: "👑 King Admin",
+  erediauwa_admin: "🏛 Erediauwa Admin",
+  loveworldcity_admin: "🏛 LoveworldCity Admin",
+  youth_teens_admin: "🏛 Youth & Teens Admin",
+  church_pastor: "⛪ Church Pastor",
+  pastor: "⛪ Church Pastor",
+  reception_team: "📋 Welcome Team",
+  cell_leader: "👥 Cell Leader",
+  follow_up_team: "📞 Follow-Up Team",
+  department_head: "🏢 Department Head",
+};
 
 export function AppSidebar() {
   const { state } = useSidebar()
   const collapsed = state === "collapsed"
   const location = useLocation()
-  const { signOut } = useAuth()
+  const { signOut, role, profile } = useAuth()
+  const items = getNavItems(role);
   
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarContent className="py-4">
-        <div className="px-4 mb-6">
+        <div className="px-4 mb-4">
           <KingsRetentionLogo size="sm" showText={!collapsed} />
         </div>
+
+        {/* Role badge */}
+        {!collapsed && role && (
+          <div className="px-4 mb-4">
+            <div className="rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5">
+              <p className="text-xs font-semibold text-primary truncate">{roleLabels[role] || role}</p>
+              {profile?.full_name && (
+                <p className="text-[11px] text-muted-foreground truncate mt-0.5">{profile.full_name}</p>
+              )}
+            </div>
+          </div>
+        )}
+
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground/50 uppercase text-[10px] tracking-widest font-semibold px-4">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
