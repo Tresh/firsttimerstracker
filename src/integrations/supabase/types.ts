@@ -124,6 +124,72 @@ export type Database = {
           },
         ]
       }
+      call_campaigns: {
+        Row: {
+          campaign_type: string
+          created_at: string | null
+          created_by: string | null
+          end_date: string | null
+          id: string
+          message_script: string | null
+          objective: string
+          organization_id: string | null
+          priority: string | null
+          start_date: string | null
+          status: string | null
+          target_type: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_type: string
+          created_at?: string | null
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          message_script?: string | null
+          objective: string
+          organization_id?: string | null
+          priority?: string | null
+          start_date?: string | null
+          status?: string | null
+          target_type: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          message_script?: string | null
+          objective?: string
+          organization_id?: string | null
+          priority?: string | null
+          start_date?: string | null
+          status?: string | null
+          target_type?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           call_timestamp: string | null
@@ -181,6 +247,141 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "follow_up_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_assignments: {
+        Row: {
+          assigned_at: string | null
+          campaign_id: string | null
+          id: string
+          member_id: string | null
+          notes: string | null
+          priority_order: number | null
+          rep_id: string | null
+          status: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          campaign_id?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          priority_order?: number | null
+          rep_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          campaign_id?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          priority_order?: number | null
+          rep_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_assignments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_assignments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_assignments_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_call_logs: {
+        Row: {
+          assignment_id: string | null
+          auto_detected_outcome: string | null
+          call_end: string | null
+          call_start: string | null
+          campaign_id: string | null
+          contact_method: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          member_id: string | null
+          outcome: string | null
+          phone_number: string | null
+          rep_id: string | null
+          rep_note: string | null
+        }
+        Insert: {
+          assignment_id?: string | null
+          auto_detected_outcome?: string | null
+          call_end?: string | null
+          call_start?: string | null
+          campaign_id?: string | null
+          contact_method?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          member_id?: string | null
+          outcome?: string | null
+          phone_number?: string | null
+          rep_id?: string | null
+          rep_note?: string | null
+        }
+        Update: {
+          assignment_id?: string | null
+          auto_detected_outcome?: string | null
+          call_end?: string | null
+          call_start?: string | null
+          campaign_id?: string | null
+          contact_method?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          member_id?: string | null
+          outcome?: string | null
+          phone_number?: string | null
+          rep_id?: string | null
+          rep_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_call_logs_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_call_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_call_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_call_logs_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
