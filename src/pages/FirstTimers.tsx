@@ -196,9 +196,11 @@ export default function FirstTimers() {
     fetchData();
   };
 
-  const filtered = members.filter(m =>
-    m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || m.phone_number?.includes(searchTerm)
-  );
+  const filtered = members.filter(m => {
+    const matchesSearch = m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || m.phone_number?.includes(searchTerm);
+    const matchesChurch = filterChurchId === "all" || m.organization_id === filterChurchId;
+    return matchesSearch && matchesChurch;
+  });
 
   return (
     <div className="space-y-6">
