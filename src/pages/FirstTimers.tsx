@@ -45,7 +45,7 @@ function getCompleteness(m: any): number {
 }
 
 export default function FirstTimers() {
-  const { profile, isKingAdmin, isGroupAdmin, organizationId } = useAuth();
+  const { profile, isKingAdmin, isGroupAdmin, organizationId, role } = useAuth();
   const [members, setMembers] = useState<any[]>([]);
   const [followUpTasks, setFollowUpTasks] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
