@@ -21,6 +21,7 @@ import ImportData from "./pages/ImportData";
 import Settings from "./pages/Settings";
 import GlobalCommand from "./pages/GlobalCommand";
 import NotFound from "./pages/NotFound";
+import EmpTracker from "./pages/EmpTracker";
 import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
 
@@ -46,6 +47,7 @@ const App = () => (
                 <Route path="/follow-up" element={<FollowUpTracker />} />
                 <Route path="/foundation-school" element={<FoundationSchool />} />
                 <Route path="/attendance" element={<Attendance />} />
+                <Route path="/emp" element={<EmpTracker />} />
                 <Route path="/leaders" element={<Leaders />} />
                 <Route path="/departments" element={<Departments />} />
                 <Route path="/analytics" element={<Analytics />} />
