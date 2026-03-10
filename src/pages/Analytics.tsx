@@ -19,7 +19,7 @@ export default function Analytics() {
     async function fetch() {
       const [mRes, tRes] = await Promise.all([
         supabase.from("members").select("*"),
-        supabase.from("follow_up_tasks").select("*").eq("completed", true),
+        supabase.from("follow_up_tasks").select("*").in("status", ["done", "verified"]),
       ]);
       setMembers(mRes.data || []);
       setTasks(tRes.data || []);

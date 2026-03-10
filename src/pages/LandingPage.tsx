@@ -54,7 +54,7 @@ export default function LandingPage() {
           supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "First Timer").gte("date_of_first_visit", dateStr),
           supabase.from("members").select("id", { count: "exact", head: true }),
           supabase.from("members").select("id", { count: "exact", head: true }).in("status", ["Member", "Worker"]),
-          supabase.from("follow_up_tasks").select("id", { count: "exact", head: true }).eq("completed", true),
+          supabase.from("follow_up_tasks").select("id", { count: "exact", head: true }).in("status", ["done", "verified"]),
           supabase.from("members").select("full_name, date_of_first_visit, location").eq("status", "First Timer").order("date_of_first_visit", { ascending: false }).limit(5),
           supabase.from("members").select("location").not("location", "is", null),
         ]);
