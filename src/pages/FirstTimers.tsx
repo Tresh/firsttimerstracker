@@ -102,21 +102,27 @@ export default function FirstTimers() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Load groups for admins
+  // Load orgs for admins
   useEffect(() => {
     if (isKingAdmin || isGroupAdmin) {
-      supabase.from("organizations").select("id, name").eq("level", "group").then(({ data }) => setGroups(data || []));
+      supabase.from("organizations").select("id, name, level, parent_id").order("name").then(({ data }) => {
+        const orgs = data || [];
+        setGroups(orgs.filter(o => o.level === "group"));
+        const churchOrgs = orgs.filter(o => o.level === "church");
+        setAllChurches(churchOrgs);
+        setChurches(churchOrgs);
+      });
     }
   }, [isKingAdmin, isGroupAdmin]);
 
-  // Load churches when group selected
+  // Filter churches when group selected in form
   useEffect(() => {
     if (selectedGroupId) {
-      supabase.from("organizations").select("id, name").eq("level", "church").eq("parent_id", selectedGroupId).then(({ data }) => setChurches(data || []));
+      setChurches(allChurches.filter(c => c.parent_id === selectedGroupId));
     } else {
-      setChurches([]);
+      setChurches(allChurches);
     }
-  }, [selectedGroupId]);
+  }, [selectedGroupId, allChurches]);
 
   // Invited-by search
   useEffect(() => {
