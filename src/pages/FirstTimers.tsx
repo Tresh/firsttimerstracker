@@ -357,6 +357,35 @@ export default function FirstTimers() {
         </div>
       </div>
 
+      {/* Church filter chips — admin only */}
+      {(isKingAdmin || isGroupAdmin) && allChurches.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilterChurchId("all")}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              filterChurchId === "all"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
+            }`}
+          >
+            All
+          </button>
+          {allChurches.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setFilterChurchId(c.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                filterChurchId === c.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
