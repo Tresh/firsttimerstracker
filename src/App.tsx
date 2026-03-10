@@ -54,6 +54,7 @@ const App = () => (
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/global" element={<GlobalCommand />} />
                 <Route path="/import" element={<ImportData />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>
