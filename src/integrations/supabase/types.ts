@@ -682,6 +682,115 @@ export type Database = {
           },
         ]
       }
+      foundation_school_attendance: {
+        Row: {
+          attended: boolean | null
+          class_id: string | null
+          id: string
+          marked_at: string | null
+          marked_by: string | null
+          member_id: string | null
+          notes: string | null
+        }
+        Insert: {
+          attended?: boolean | null
+          class_id?: string | null
+          id?: string
+          marked_at?: string | null
+          marked_by?: string | null
+          member_id?: string | null
+          notes?: string | null
+        }
+        Update: {
+          attended?: boolean | null
+          class_id?: string | null
+          id?: string
+          marked_at?: string | null
+          marked_by?: string | null
+          member_id?: string | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foundation_school_attendance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "foundation_school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_school_attendance_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_school_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      foundation_school_classes: {
+        Row: {
+          class_code: string
+          class_description: string | null
+          class_number: number
+          class_title: string
+          created_at: string | null
+          facilitator_id: string | null
+          id: string
+          is_exam: boolean | null
+          organization_id: string | null
+          scheduled_day: string | null
+          scheduled_time: string | null
+        }
+        Insert: {
+          class_code: string
+          class_description?: string | null
+          class_number: number
+          class_title: string
+          created_at?: string | null
+          facilitator_id?: string | null
+          id?: string
+          is_exam?: boolean | null
+          organization_id?: string | null
+          scheduled_day?: string | null
+          scheduled_time?: string | null
+        }
+        Update: {
+          class_code?: string
+          class_description?: string | null
+          class_number?: number
+          class_title?: string
+          created_at?: string | null
+          facilitator_id?: string | null
+          id?: string
+          is_exam?: boolean | null
+          organization_id?: string | null
+          scheduled_day?: string | null
+          scheduled_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foundation_school_classes_facilitator_id_fkey"
+            columns: ["facilitator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_school_classes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           address: string | null
@@ -701,6 +810,13 @@ export type Database = {
           foundation_school_status:
             | Database["public"]["Enums"]["foundation_school_status"]
             | null
+          fs_classes_completed: number | null
+          fs_enrolled: boolean | null
+          fs_enrolled_date: string | null
+          fs_exam_passed: boolean | null
+          fs_exam_score: number | null
+          fs_graduated: boolean | null
+          fs_graduation_date: string | null
           full_name: string
           gender: string | null
           group_assigned: string | null
@@ -736,6 +852,13 @@ export type Database = {
           foundation_school_status?:
             | Database["public"]["Enums"]["foundation_school_status"]
             | null
+          fs_classes_completed?: number | null
+          fs_enrolled?: boolean | null
+          fs_enrolled_date?: string | null
+          fs_exam_passed?: boolean | null
+          fs_exam_score?: number | null
+          fs_graduated?: boolean | null
+          fs_graduation_date?: string | null
           full_name: string
           gender?: string | null
           group_assigned?: string | null
@@ -771,6 +894,13 @@ export type Database = {
           foundation_school_status?:
             | Database["public"]["Enums"]["foundation_school_status"]
             | null
+          fs_classes_completed?: number | null
+          fs_enrolled?: boolean | null
+          fs_enrolled_date?: string | null
+          fs_exam_passed?: boolean | null
+          fs_exam_score?: number | null
+          fs_graduated?: boolean | null
+          fs_graduation_date?: string | null
           full_name?: string
           gender?: string | null
           group_assigned?: string | null
