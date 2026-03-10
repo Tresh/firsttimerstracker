@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import {
   Phone, MessageCircle, CheckCircle2, Clock, AlertTriangle,
   Users, ClipboardCheck, Bell, ChevronDown, XCircle,
-  Shield, BarChart3, X
+  Shield, BarChart3, X, Camera, MapPin, Edit3, Image
 } from "lucide-react";
 import { formatDistanceToNow, format, startOfWeek, isToday, isYesterday, isBefore } from "date-fns";
 
