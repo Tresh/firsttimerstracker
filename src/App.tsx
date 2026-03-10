@@ -22,6 +22,7 @@ import Settings from "./pages/Settings";
 import GlobalCommand from "./pages/GlobalCommand";
 import NotFound from "./pages/NotFound";
 import WelcomeDesk from "./pages/WelcomeDesk";
+import AttendanceScan from "./pages/AttendanceScan";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/attend" element={<AttendanceScan />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/welcome-desk" element={<WelcomeDesk />} />
               <Route element={<Layout />}>
