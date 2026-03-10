@@ -12,7 +12,7 @@ export default function Leaders() {
         supabase.from("profiles").select("id, full_name, user_id"),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("members").select("assigned_follow_up_leader").not("assigned_follow_up_leader", "is", null),
-        supabase.from("follow_up_tasks").select("assigned_to, completed"),
+        supabase.from("follow_up_tasks").select("assigned_to, status"),
       ]);
 
       const profiles = profilesRes.data || [];
@@ -32,7 +32,7 @@ export default function Leaders() {
         if (t.assigned_to) {
           if (!taskMap[t.assigned_to]) taskMap[t.assigned_to] = { total: 0, completed: 0 };
           taskMap[t.assigned_to].total++;
-          if (t.completed) taskMap[t.assigned_to].completed++;
+          if (t.status === "verified" || t.status === "done") taskMap[t.assigned_to].completed++;
         }
       });
 

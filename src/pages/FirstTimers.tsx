@@ -168,9 +168,23 @@ export default function FirstTimers() {
       return;
     }
 
-    const { error } = await supabase.from("members").insert([payload]);
+    const { data: insertedData, error } = await supabase.from("members").insert([payload]).select("id").single();
     if (error) { toast.error(error.message); return; }
     toast.success("First Timer registered!");
+
+    // Auto-create follow-up tasks
+    if (insertedData?.id) {
+      const { error: rpcError } = await supabase.rpc("create_followup_tasks", {
+        _member_id: insertedData.id,
+        _registration_date: new Date().toISOString(),
+      });
+      if (rpcError) {
+        console.error("Follow-up tasks creation error:", rpcError);
+      } else {
+        toast.success("Follow-up tasks created automatically ✓");
+      }
+    }
+
     setIsRegisterOpen(false);
     setFormData(defaultForm);
     setInvitedBySearch("");
