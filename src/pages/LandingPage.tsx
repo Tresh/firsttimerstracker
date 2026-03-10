@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { KingsRetentionLogo } from "@/components/KingsRetentionLogo";
 import {
   UserPlus, Users, TrendingUp, Calendar, Award, 
-  ArrowRight, Heart, CheckCircle2, MapPin, Church,
-  BarChart3, ClipboardList
+  ArrowRight, Heart, CheckCircle2, MapPin,
+  BarChart3, ClipboardList, Shield, Zap
 } from "lucide-react";
 
 interface Stats {
@@ -36,11 +36,7 @@ interface LocationCluster {
 
 export default function LandingPage() {
   const [stats, setStats] = useState<Stats>({
-    totalFirstTimers: 0,
-    totalMembers: 0,
-    retained: 0,
-    followedUp: 0,
-    retentionRate: 0,
+    totalFirstTimers: 0, totalMembers: 0, retained: 0, followedUp: 0, retentionRate: 0,
   });
   const [topLeaders, setTopLeaders] = useState<TopLeader[]>([]);
   const [recentFirstTimers, setRecentFirstTimers] = useState<RecentFirstTimer[]>([]);
@@ -54,7 +50,6 @@ export default function LandingPage() {
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
         const dateStr = oneMonthAgo.toISOString().split("T")[0];
 
-        // Fetch counts in parallel
         const [firstTimersRes, allMembersRes, retainedRes, followedUpRes, recentRes, membersWithLocation] = await Promise.all([
           supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "First Timer").gte("date_of_first_visit", dateStr),
           supabase.from("members").select("id", { count: "exact", head: true }),
@@ -73,48 +68,26 @@ export default function LandingPage() {
         setStats({ totalFirstTimers: totalFT, totalMembers: totalAll, retained, followedUp, retentionRate });
         setRecentFirstTimers(recentRes.data || []);
 
-        // Aggregate locations
         if (membersWithLocation.data) {
           const locMap: Record<string, number> = {};
           membersWithLocation.data.forEach((m) => {
             const loc = (m.location || "").trim();
             if (loc) locMap[loc] = (locMap[loc] || 0) + 1;
           });
-          const sorted = Object.entries(locMap)
-            .map(([location, count]) => ({ location, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 6);
-          setLocations(sorted);
+          setLocations(Object.entries(locMap).map(([location, count]) => ({ location, count })).sort((a, b) => b.count - a.count).slice(0, 6));
         }
 
-        // Top leaders - get profiles that are assigned as follow-up leaders
-        const { data: leaderData } = await supabase
-          .from("members")
-          .select("assigned_follow_up_leader")
-          .not("assigned_follow_up_leader", "is", null);
-
+        const { data: leaderData } = await supabase.from("members").select("assigned_follow_up_leader").not("assigned_follow_up_leader", "is", null);
         if (leaderData) {
           const leaderCount: Record<string, number> = {};
-          leaderData.forEach((m) => {
-            const lid = m.assigned_follow_up_leader!;
-            leaderCount[lid] = (leaderCount[lid] || 0) + 1;
-          });
-          const topIds = Object.entries(leaderCount)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
-
+          leaderData.forEach((m) => { leaderCount[m.assigned_follow_up_leader!] = (leaderCount[m.assigned_follow_up_leader!] || 0) + 1; });
+          const topIds = Object.entries(leaderCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
           if (topIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from("profiles")
-              .select("id, full_name")
-              .in("id", topIds.map(([id]) => id));
-
+            const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", topIds.map(([id]) => id));
             if (profiles) {
               const nameMap: Record<string, string> = {};
               profiles.forEach((p) => (nameMap[p.id] = p.full_name));
-              setTopLeaders(
-                topIds.map(([id, count]) => ({ full_name: nameMap[id] || "Unknown", count }))
-              );
+              setTopLeaders(topIds.map(([id, count]) => ({ full_name: nameMap[id] || "Unknown", count })));
             }
           }
         }
@@ -129,118 +102,79 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 glass-card border-b">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 glass-navbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="gradient-primary p-2 rounded-xl">
-                <Church className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <span className="font-display font-bold text-lg text-foreground">Benin Zone 1</span>
-                <span className="hidden sm:block text-xs text-muted-foreground">Church Retention & Follow-up</span>
-              </div>
-            </div>
+          <div className="flex items-center justify-between h-14">
+            <KingsRetentionLogo size="sm" />
             <div className="flex items-center gap-3">
               <Link to="/auth">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>
               <Link to="/auth?mode=signup">
-                <Button size="sm" className="gradient-primary border-0 text-primary-foreground">
-                  Get Started
-                </Button>
+                <Button size="sm">Get Started</Button>
               </Link>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 gradient-primary opacity-[0.03]" />
-        <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-float" />
-        <div className="absolute bottom-10 left-10 w-96 h-96 rounded-full bg-accent/5 blur-3xl animate-float" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute inset-0 gradient-primary opacity-[0.06]" />
+        <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-primary/10 blur-[100px] animate-float" />
+        <div className="absolute bottom-10 left-10 w-96 h-96 rounded-full bg-accent/10 blur-[100px] animate-float" style={{ animationDelay: '1.5s' }} />
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              <Heart className="h-4 w-4" />
-              Benin Zone One Church Retention & Follow-up
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full badge-primary text-sm font-medium mb-8 animate-fade-up">
+              <Shield className="h-4 w-4" />
+              Church Retention & Follow-Up Platform
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-foreground leading-tight mb-6">
-              Track Every First-Timer,{" "}
-              <span className="gradient-text">Retain Every Soul</span>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-extrabold text-foreground leading-tight mb-6 animate-fade-up-delay-1">
+              Track Every Soul.{" "}
+              <span className="gradient-gold">Retain Every Member.</span>
             </h1>
-            <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-up-delay-2">
               A powerful platform to monitor first-time visitors, manage follow-up journeys, 
               track retention, and grow the body of Christ — all in one place.
             </p>
 
-            {/* Quick Action Buttons */}
-            <div className="flex flex-wrap justify-center gap-4 mb-16">
+            <div className="flex flex-wrap justify-center gap-4 mb-16 animate-fade-up-delay-3">
               <Link to="/auth?redirect=/first-timers">
-                <Button size="lg" className="gradient-primary border-0 text-primary-foreground gap-2 text-base px-8 h-14 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                <Button size="lg" className="gap-2 text-base px-8 h-14">
                   <UserPlus className="h-5 w-5" />
                   Register a First Timer
                 </Button>
               </Link>
-              <Link to="/auth?redirect=/attendance">
-                <Button size="lg" variant="outline" className="gap-2 text-base px-8 h-14 rounded-2xl border-2 hover:scale-105 transition-all">
-                  <Calendar className="h-5 w-5" />
-                  Track Attendance
-                </Button>
-              </Link>
-              <Link to="/auth?redirect=/follow-up">
-                <Button size="lg" variant="outline" className="gap-2 text-base px-8 h-14 rounded-2xl border-2 hover:scale-105 transition-all">
-                  <ClipboardList className="h-5 w-5" />
-                  Follow-Up Tasks
+              <Link to="/auth?redirect=/dashboard">
+                <Button size="lg" variant="outline" className="gap-2 text-base px-8 h-14">
+                  <BarChart3 className="h-5 w-5" />
+                  View Dashboard
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Live Stats Grid */}
+          {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto">
-            <StatCard
-              icon={<UserPlus className="h-6 w-6" />}
-              label="First Timers (This Month)"
-              value={stats.totalFirstTimers}
-              color="primary"
-              loaded={loaded}
-            />
-            <StatCard
-              icon={<Users className="h-6 w-6" />}
-              label="Total Members"
-              value={stats.totalMembers}
-              color="accent"
-              loaded={loaded}
-            />
-            <StatCard
-              icon={<TrendingUp className="h-6 w-6" />}
-              label="Members Retained"
-              value={stats.retained}
-              color="success"
-              loaded={loaded}
-            />
-            <StatCard
-              icon={<CheckCircle2 className="h-6 w-6" />}
-              label="Follow-Ups Completed"
-              value={stats.followedUp}
-              color="primary"
-              loaded={loaded}
-            />
+            <StatCard icon={<UserPlus className="h-6 w-6" />} label="First Timers (This Month)" value={stats.totalFirstTimers} color="primary" loaded={loaded} delay={0} />
+            <StatCard icon={<Users className="h-6 w-6" />} label="Total Members" value={stats.totalMembers} color="accent" loaded={loaded} delay={1} />
+            <StatCard icon={<TrendingUp className="h-6 w-6" />} label="Members Retained" value={stats.retained} color="success" loaded={loaded} delay={2} />
+            <StatCard icon={<CheckCircle2 className="h-6 w-6" />} label="Follow-Ups Done" value={stats.followedUp} color="info" loaded={loaded} delay={3} />
           </div>
 
           {/* Retention Progress */}
-          <div className="max-w-5xl mx-auto mt-8">
-            <Card className="glass-card stat-glow border-0">
+          <div className="max-w-5xl mx-auto mt-8 animate-fade-up-delay-5">
+            <Card className="border-0">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-muted-foreground">Overall Retention Rate</span>
-                  <span className="text-2xl font-bold gradient-text">{stats.retentionRate}%</span>
+                  <span className="text-2xl font-display font-extrabold gradient-gold">{stats.retentionRate}%</span>
                 </div>
-                <Progress value={stats.retentionRate} className="h-3 rounded-full" />
+                <div className="h-3 rounded-full progress-bar-track overflow-hidden">
+                  <div className="h-full rounded-full progress-bar-fill transition-all duration-1000" style={{ width: `${stats.retentionRate}%` }} />
+                </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   {stats.retained} out of {stats.totalMembers} visitors are now active members
                 </p>
@@ -251,30 +185,27 @@ export default function LandingPage() {
       </section>
 
       {/* Content Sections */}
-      <section className="py-16 bg-muted/30">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-8">
-            
+          <div className="grid lg:grid-cols-3 gap-6">
             {/* Recent First Timers */}
-            <Card className="glass-card border-0 lg:col-span-1">
+            <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="gradient-primary p-2.5 rounded-xl">
                     <UserPlus className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-lg text-foreground">Recent First Timers</h3>
-                    <p className="text-xs text-muted-foreground">Newest visitors this period</p>
+                    <h3 className="font-display font-bold text-foreground">Recent First Timers</h3>
+                    <p className="text-xs text-muted-foreground">Newest visitors</p>
                   </div>
                 </div>
                 {recentFirstTimers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No first timers registered yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No first timers registered yet.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {recentFirstTimers.map((ft, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors">
                         <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
                           {ft.full_name.charAt(0)}
                         </div>
@@ -285,9 +216,7 @@ export default function LandingPage() {
                             {new Date(ft.date_of_first_visit).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                           </p>
                         </div>
-                        {ft.location && (
-                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">{ft.location}</span>
-                        )}
+                        {ft.location && <span className="text-xs badge-primary px-2 py-1 rounded-full">{ft.location}</span>}
                       </div>
                     ))}
                   </div>
@@ -296,39 +225,33 @@ export default function LandingPage() {
             </Card>
 
             {/* Top Leaders */}
-            <Card className="glass-card border-0 lg:col-span-1">
+            <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-accent p-2.5 rounded-xl">
-                    <Award className="h-5 w-5 text-accent-foreground" />
+                  <div className="bg-accent/20 p-2.5 rounded-xl">
+                    <Award className="h-5 w-5 text-accent" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-lg text-foreground">Top Leaders</h3>
+                    <h3 className="font-display font-bold text-foreground">Top Leaders</h3>
                     <p className="text-xs text-muted-foreground">By members assigned</p>
                   </div>
                 </div>
                 {topLeaders.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No leader data available yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No leader data available yet.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {topLeaders.map((leader, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                          i === 0 ? "bg-accent text-accent-foreground" : 
-                          i === 1 ? "bg-primary/20 text-primary" : 
-                          "bg-muted text-muted-foreground"
+                          i === 0 ? "bg-accent/20 text-accent gold-glow" : i === 1 ? "badge-primary" : "bg-secondary text-muted-foreground"
                         }`}>
                           #{i + 1}
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-sm text-foreground">{leader.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{leader.count} members assigned</p>
+                          <p className="text-xs text-muted-foreground">{leader.count} assigned</p>
                         </div>
-                        {i === 0 && (
-                          <span className="text-xs bg-accent/15 text-accent font-semibold px-2 py-1 rounded-full">🏆 Top</span>
-                        )}
+                        {i === 0 && <span className="text-xs badge-gold px-2 py-1 rounded-full font-semibold">🏆 Top</span>}
                       </div>
                     ))}
                   </div>
@@ -336,31 +259,29 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Member Locations */}
-            <Card className="glass-card border-0 lg:col-span-1">
+            {/* Locations */}
+            <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-success p-2.5 rounded-xl">
-                    <MapPin className="h-5 w-5 text-success-foreground" />
+                  <div className="bg-success/20 p-2.5 rounded-xl">
+                    <MapPin className="h-5 w-5 text-success" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-lg text-foreground">Member Locations</h3>
+                    <h3 className="font-display font-bold text-foreground">Member Locations</h3>
                     <p className="text-xs text-muted-foreground">Where our members are</p>
                   </div>
                 </div>
                 {locations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No location data available yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No location data available.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {locations.map((loc, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors">
                         <div className="flex items-center gap-3">
                           <MapPin className="h-4 w-4 text-primary" />
                           <span className="font-medium text-sm text-foreground">{loc.location}</span>
                         </div>
-                        <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
+                        <span className="text-xs badge-primary px-3 py-1 rounded-full font-semibold">
                           {loc.count} {loc.count === 1 ? "person" : "people"}
                         </span>
                       </div>
@@ -373,12 +294,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Overview */}
+      {/* Features */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-display font-bold text-foreground mb-3">Everything You Need to Grow</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">Simple tools designed for church workers of all ages and technical abilities.</p>
+            <h2 className="text-3xl font-display font-extrabold text-foreground mb-3">Everything You Need to Grow</h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">Simple tools designed for church workers of all technical abilities.</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
@@ -387,14 +308,14 @@ export default function LandingPage() {
               { icon: <Calendar className="h-6 w-6" />, title: "Attendance Tracking", desc: "Log attendance for Sunday, midweek, cell meetings & special programs." },
               { icon: <BarChart3 className="h-6 w-6" />, title: "Church Growth Analytics", desc: "Visual charts showing retention trends, growth, and engagement." },
               { icon: <Award className="h-6 w-6" />, title: "Leader Leaderboards", desc: "Gamified rankings for soul-winning, retention, and follow-up consistency." },
-              { icon: <Users className="h-6 w-6" />, title: "Global Member Search", desc: "Find any member instantly by name, phone, location, or department." },
+              { icon: <Zap className="h-6 w-6" />, title: "Real-Time Intelligence", desc: "Live dashboards showing church health across all departments." },
             ].map((feature, i) => (
-              <Card key={i} className="glass-card border-0 group hover:stat-glow transition-all duration-300 hover:-translate-y-1">
+              <Card key={i} className="group">
                 <CardContent className="p-6">
                   <div className="gradient-primary p-3 rounded-xl w-fit mb-4 group-hover:scale-110 transition-transform">
                     <span className="text-primary-foreground">{feature.icon}</span>
                   </div>
-                  <h3 className="font-sans font-semibold text-foreground mb-2">{feature.title}</h3>
+                  <h3 className="font-display font-bold text-foreground mb-2">{feature.title}</h3>
                   <p className="text-sm text-muted-foreground">{feature.desc}</p>
                 </CardContent>
               </Card>
@@ -406,35 +327,33 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Card className="gradient-primary border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-primary-foreground/5 -translate-y-1/2 translate-x-1/3" />
-            <CardContent className="relative p-8 sm:p-12 text-center">
-              <h2 className="text-3xl font-display font-bold text-primary-foreground mb-4">
+          <div className="gradient-primary rounded-3xl overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white/5 translate-y-1/3 -translate-x-1/4" />
+            <div className="relative p-8 sm:p-12 text-center">
+              <h2 className="text-3xl font-display font-extrabold text-primary-foreground mb-4">
                 Ready to Transform Your Church's Follow-Up?
               </h2>
-              <p className="text-primary-foreground/80 mb-8 max-w-lg mx-auto">
-                Join Benin Zone One's digital retention system. Start tracking first-timers and retaining souls today.
+              <p className="text-primary-foreground/70 mb-8 max-w-lg mx-auto">
+                Start tracking first-timers and retaining souls today with KingsRetention.
               </p>
               <Link to="/auth?mode=signup">
-                <Button size="lg" variant="secondary" className="gap-2 text-base h-14 px-10 rounded-2xl font-semibold hover:scale-105 transition-all">
+                <Button size="lg" variant="outline" className="gap-2 text-base h-14 px-10 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30">
                   Get Started Now
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8">
+      <footer className="border-t border-[rgba(255,255,255,0.06)] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Church className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium text-foreground">Benin Zone One First Timers Tracker</span>
-          </div>
+          <KingsRetentionLogo size="sm" />
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Benin Zone One. Track every first-timer, retain every soul.
+            © {new Date().getFullYear()} KingsRetention. Track Every Soul. Retain Every Member.
           </p>
         </div>
       </footer>
@@ -442,26 +361,34 @@ export default function LandingPage() {
   );
 }
 
-function StatCard({ icon, label, value, color, loaded }: {
+function StatCard({ icon, label, value, color, loaded, delay }: {
   icon: React.ReactNode;
   label: string;
   value: number;
-  color: "primary" | "accent" | "success";
+  color: "primary" | "accent" | "success" | "info";
   loaded: boolean;
+  delay: number;
 }) {
   const bgMap = {
     primary: "gradient-primary",
-    accent: "bg-accent",
-    success: "bg-success",
+    accent: "bg-accent/20 text-accent",
+    success: "bg-success/20 text-success",
+    info: "bg-info/20 text-info",
+  };
+  const textMap = {
+    primary: "text-primary-foreground",
+    accent: "text-accent",
+    success: "text-success",
+    info: "text-info",
   };
 
   return (
-    <Card className="glass-card border-0 stat-glow hover:-translate-y-1 transition-all duration-300">
+    <Card className={`animate-fade-up-delay-${delay + 1}`}>
       <CardContent className="p-5 sm:p-6">
         <div className={`${bgMap[color]} p-2.5 rounded-xl w-fit mb-3`}>
-          <span className={color === "primary" ? "text-primary-foreground" : `text-${color}-foreground`}>{icon}</span>
+          <span className={color === "primary" ? "text-primary-foreground" : ""}>{icon}</span>
         </div>
-        <p className={`text-3xl sm:text-4xl font-bold text-foreground ${loaded ? "animate-count-up" : ""}`}>
+        <p className={`text-3xl sm:text-4xl font-display font-extrabold ${textMap[color]} ${loaded ? "animate-count-up" : ""}`}>
           {loaded ? value.toLocaleString() : "—"}
         </p>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">{label}</p>
