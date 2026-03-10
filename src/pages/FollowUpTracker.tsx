@@ -169,88 +169,81 @@ function CellLeaderView() {
               const status = getStatus(m.id);
               const week = getCurrentWeek(m.id);
               const urgent = getUrgentTask(m.id);
-              const expanded = expandedMember === m.id;
+              const isOpen = expandedMember === m.id;
               const weekTasks = getMemberTasks(m.id).filter(t => t.week_number === week);
 
               return (
-                <Card key={m.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Tappable header area */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="w-full p-4 flex items-center gap-4 text-left cursor-pointer active:bg-secondary/50 transition-colors select-none"
-                      onClick={() => setExpandedMember(expanded ? null : m.id)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpandedMember(expanded ? null : m.id); }}
+                <div
+                  key={m.id}
+                  className="glass-card rounded-2xl overflow-hidden"
+                  onClick={() => setExpandedMember(isOpen ? null : m.id)}
+                >
+                  {/* Top row: avatar + name + week + status dot */}
+                  <div className="p-4 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
+                      {m.full_name?.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-lg font-bold text-foreground truncate">{m.full_name}</p>
+                      <p className="text-sm text-muted-foreground">Week {week} of 6</p>
+                      {urgent && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {urgent.task_emoji} {urgent.task_name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center gap-1 shrink-0">
+                      <span className="text-xl">{statusDot(status)}</span>
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                    </div>
+                  </div>
+
+                  {/* Middle row: CALL and WHATSAPP buttons */}
+                  <div className="flex gap-2 px-4 pb-3">
+                    <a
+                      href={`tel:${m.phone_number}`}
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))] rounded-xl py-3 text-base font-bold active:opacity-70 transition-opacity"
                     >
-                      <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
-                        {m.full_name?.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-lg font-bold text-foreground truncate">{m.full_name}</p>
-                        <p className="text-sm text-muted-foreground">Week {week} of 6</p>
-                        {urgent && (
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            {urgent.task_emoji} {urgent.task_name}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-center gap-1 shrink-0">
-                        <span className="text-xl">{statusDot(status)}</span>
-                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-                      </div>
-                    </div>
+                      <Phone className="h-5 w-5" /> 📞 CALL
+                    </a>
+                    <a
+                      href={`https://wa.me/${(m.phone_number || "").replace(/^0/, "234")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="flex-1 flex items-center justify-center gap-2 bg-primary/15 text-primary rounded-xl py-3 text-base font-bold active:opacity-70 transition-opacity"
+                    >
+                      <MessageCircle className="h-5 w-5" /> 💬 WHATSAPP
+                    </a>
+                  </div>
 
-                    {/* Action buttons - stopPropagation to prevent expand toggle */}
-                    <div className="flex gap-2 px-4 pb-3">
-                      <a
-                        href={`tel:${m.phone_number}`}
-                        onClick={(e) => e.stopPropagation()}
-                        onTouchEnd={(e) => e.stopPropagation()}
-                        className="flex-1 flex items-center justify-center gap-2 bg-success/15 text-success rounded-xl py-3 text-base font-bold hover:bg-success/25 active:bg-success/30 transition-colors"
-                      >
-                        <Phone className="h-5 w-5" /> 📞 CALL
-                      </a>
-                      <a
-                        href={`https://wa.me/${(m.phone_number || "").replace(/^0/, "234")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        onTouchEnd={(e) => e.stopPropagation()}
-                        className="flex-1 flex items-center justify-center gap-2 bg-primary/15 text-primary rounded-xl py-3 text-base font-bold hover:bg-primary/25 active:bg-primary/30 transition-colors"
-                      >
-                        <MessageCircle className="h-5 w-5" /> 💬 WHATSAPP
-                      </a>
+                  {/* Expanded task list */}
+                  {isOpen && (
+                    <div className="px-4 pb-4 space-y-2 border-t border-border pt-3" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-sm font-semibold text-muted-foreground mb-2">📋 Week {week} Tasks</p>
+                      {weekTasks.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No tasks for this week.</p>
+                      ) : weekTasks.map(task => (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-3 min-h-[56px] p-3 rounded-xl bg-secondary/50 active:bg-secondary transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (task.status === "pending") setTaskDialog(task);
+                          }}
+                        >
+                          <span className="text-2xl shrink-0 leading-none">{task.task_emoji || "📋"}</span>
+                          <span className="flex-1 text-base text-foreground">{task.task_name}</span>
+                          <span className="text-xl shrink-0">{taskStatusIcon(task.status, task.due_date)}</span>
+                        </div>
+                      ))}
+                      {weekTasks.some(t => t.status === "done") && (
+                        <p className="text-xs text-muted-foreground mt-2 italic">🟡 Your pastor's team will confirm completed tasks</p>
+                      )}
                     </div>
-
-                    {/* Expanded task list */}
-                    {expanded && (
-                      <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
-                        <p className="text-sm font-semibold text-muted-foreground mb-2">Week {week} Tasks</p>
-                        {weekTasks.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No tasks for this week.</p>
-                        ) : weekTasks.map(task => (
-                          <button
-                            key={task.id}
-                            className="w-full flex items-center gap-3 min-h-[56px] p-3 rounded-xl bg-secondary/50 hover:bg-secondary active:bg-secondary/80 transition-colors text-left"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (task.status === "pending") setTaskDialog(task);
-                            }}
-                            disabled={task.status === "verified" || task.status === "done"}
-                          >
-                            <span className="text-2xl shrink-0 leading-none">{task.task_emoji || "📋"}</span>
-                            <span className="flex-1 text-base text-foreground">{task.task_name}</span>
-                            <span className="text-xl shrink-0">{taskStatusIcon(task.status, task.due_date)}</span>
-                          </button>
-                        ))}
-                        {weekTasks.some(t => t.status === "done") && (
-                          <p className="text-xs text-muted-foreground mt-2 italic">🟡 Your pastor's team will confirm completed tasks</p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               );
             })}
           </>
@@ -337,50 +330,69 @@ function CellLeaderView() {
         )}
       </div>
 
-      {/* Task completion bottom sheet */}
-      <Drawer open={!!taskDialog} onOpenChange={(open) => { if (!open) { setTaskDialog(null); setTaskNote(""); } }}>
-        <DrawerContent className="bg-card border-border px-4 pb-8">
-          <DrawerHeader className="px-0">
-            <DrawerTitle className="text-lg font-display flex items-center gap-2">
-              <span className="text-2xl">{taskDialog?.task_emoji}</span> {taskDialog?.task_name}
-            </DrawerTitle>
-          </DrawerHeader>
-          <div className="space-y-4 mt-2">
-            {taskDialog?.task_category === "call" ? (
+      {/* Task completion — fixed bottom panel (plain div, no library) */}
+      {taskDialog && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60" />
+          {/* Panel */}
+          <div
+            className="relative bg-card border-t border-border rounded-t-2xl p-6 pb-8 space-y-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"
+              onClick={() => { setTaskDialog(null); setTaskNote(""); }}
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3 pr-8">
+              <span className="text-3xl">{taskDialog.task_emoji || "📋"}</span>
+              <p className="text-lg font-bold text-foreground">{taskDialog.task_name}</p>
+            </div>
+
+            {taskDialog.task_category === "call" ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">How did the call go?</p>
-                <div className="grid gap-2">
-                  <Button size="lg" className="h-14 text-base justify-start gap-3" onClick={() => handleMarkDone(taskDialog, "answered")}>
-                    ✅ Answered
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-14 text-base justify-start gap-3" onClick={() => handleMarkDone(taskDialog, "no_answer")}>
-                    📵 No Answer
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-14 text-base justify-start gap-3" onClick={() => handleMarkDone(taskDialog, "will_retry")}>
-                    🔄 Will Retry
-                  </Button>
-                </div>
+                <button
+                  className="w-full h-14 rounded-xl gradient-primary text-primary-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                  onClick={() => handleMarkDone(taskDialog, "answered")}
+                >
+                  ✅ Answered
+                </button>
+                <button
+                  className="w-full h-14 rounded-xl border border-border bg-secondary text-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                  onClick={() => handleMarkDone(taskDialog, "no_answer")}
+                >
+                  📵 No Answer
+                </button>
+                <button
+                  className="w-full h-14 rounded-xl border border-border bg-secondary text-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                  onClick={() => handleMarkDone(taskDialog, "will_retry")}
+                >
+                  🔄 Will Retry
+                </button>
               </div>
-            ) : taskDialog?.task_category === "visit" ? (
-              <div className="space-y-3">
-                <Textarea placeholder="Add notes about the visit..." value={taskNote} onChange={e => setTaskNote(e.target.value)} className="min-h-[100px]" />
-                <Button size="lg" className="w-full h-14 text-base" onClick={() => handleMarkDone(taskDialog)}>
-                  🏠 Mark Visit Done
-                </Button>
-              </div>
-            ) : taskDialog?.task_category === "sms" ? (
-              <Button size="lg" className="w-full h-14 text-base" onClick={() => handleMarkDone(taskDialog)}>
-                🙏 Mark Prayer SMS Sent
-              </Button>
             ) : (
-              <Button size="lg" className="w-full h-14 text-base" onClick={() => handleMarkDone(taskDialog)}>
-                ✓ Mark as Done
-              </Button>
+              <button
+                className="w-full h-14 rounded-xl bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-lg font-bold flex items-center justify-center gap-2 active:opacity-80"
+                onClick={() => handleMarkDone(taskDialog)}
+              >
+                ✅ Mark as Done
+              </button>
             )}
-            <Textarea placeholder="Optional note..." value={taskNote} onChange={e => setTaskNote(e.target.value)} className={taskDialog?.task_category === "visit" ? "hidden" : ""} />
+
+            <Textarea
+              placeholder="Optional note..."
+              value={taskNote}
+              onChange={e => setTaskNote(e.target.value)}
+              className="min-h-[80px]"
+            />
           </div>
-        </DrawerContent>
-      </Drawer>
+        </div>
+      )}
 
       {/* Bottom tab bar */}
       <div className="fixed bottom-0 left-0 right-0 glass-navbar z-40 flex justify-around py-2 px-2 safe-area-bottom">
