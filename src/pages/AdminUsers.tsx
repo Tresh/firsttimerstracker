@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, MoreVertical, Search, Users } from "lucide-react";
+import { UserPlus, MoreVertical, Search, Users, AlertTriangle } from "lucide-react";
 
 type RoleOption = {
   label: string;
@@ -34,7 +34,6 @@ const roleOptions: RoleOption[] = [
   { label: "🏢 Department Staff", value: "department_staff", level: "department" },
 ];
 
-// Map UI-only values to actual DB enum values
 const roleToDbRole: Record<string, string> = {
   zonal_pastor: "church_pastor",
 };
@@ -83,18 +82,23 @@ type StaffMember = {
   role_title: string | null;
   role: string | null;
   org_name: string | null;
+  is_banned?: boolean;
 };
+
+function getRoleLevel(roleValue: string): string {
+  return roleOptions.find(r => r.value === roleValue)?.level || "top";
+}
 
 export default function AdminUsers() {
   const { toast } = useToast();
-  const { isKingAdmin, isGroupAdmin, organizationId, role } = useAuth();
+  const { isKingAdmin, isGroupAdmin, organizationId } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Form state
+  // Create form state
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -105,18 +109,45 @@ export default function AdminUsers() {
   const [cellGroup, setCellGroup] = useState("");
   const [department, setDepartment] = useState("");
 
-  const groups = useMemo(() => orgs.filter((o) => o.level === "group"), [orgs]);
-  const churches = useMemo(() => {
-    const all = orgs.filter((o) => o.level === "church");
-    if (selectedGroup) return all.filter((c) => c.parent_id === selectedGroup);
-    return all;
-  }, [orgs, selectedGroup]);
+  // Edit Role dialog
+  const [editRoleOpen, setEditRoleOpen] = useState(false);
+  const [editStaff, setEditStaff] = useState<StaffMember | null>(null);
+  const [editRole, setEditRole] = useState("");
+  const [editGroup, setEditGroup] = useState("");
+  const [editChurch, setEditChurch] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
-  const roleLevel = roleOptions.find(r => r.value === selectedRole)?.level || "top";
-  const showGroup = ["group"].includes(roleLevel);
+  // Reset Password dialog
+  const [resetPwOpen, setResetPwOpen] = useState(false);
+  const [resetStaff, setResetStaff] = useState<StaffMember | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // Deactivate dialog
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [deactivateStaff, setDeactivateStaff] = useState<StaffMember | null>(null);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+
+  const groups = useMemo(() => orgs.filter((o) => o.level === "group"), [orgs]);
+
+  const getChurches = (groupId: string) => {
+    const all = orgs.filter((o) => o.level === "church");
+    if (groupId) return all.filter((c) => c.parent_id === groupId);
+    return all;
+  };
+
+  const churches = useMemo(() => getChurches(selectedGroup), [orgs, selectedGroup]);
+  const editChurches = useMemo(() => getChurches(editGroup), [orgs, editGroup]);
+
+  const roleLevel = getRoleLevel(selectedRole);
+  const showGroup = roleLevel === "group";
   const showChurch = ["church", "cell", "department"].includes(roleLevel);
   const showCell = roleLevel === "cell";
   const showDept = roleLevel === "department";
+
+  const editRoleLevel = getRoleLevel(editRole);
+  const editShowGroup = editRoleLevel === "group";
+  const editShowChurch = ["church", "cell", "department"].includes(editRoleLevel);
 
   useEffect(() => {
     loadOrgs();
@@ -129,13 +160,10 @@ export default function AdminUsers() {
   }
 
   async function loadStaff() {
-    // Load profiles with their roles
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, user_id, full_name, phone_number, organization_id, role_title");
-
     const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-
     const { data: orgData } = await supabase.from("organizations").select("id, name");
 
     if (!profiles) return;
@@ -148,18 +176,14 @@ export default function AdminUsers() {
       role: roleMap.get(p.user_id) || null,
       org_name: p.organization_id ? orgMap.get(p.organization_id) || null : null,
     }));
-
     setStaffList(list);
   }
 
   const filteredStaff = useMemo(() => {
-    let list = staffList.filter((s) => s.role); // only show users with roles
-
-    // Scoping
+    let list = staffList.filter((s) => s.role);
     if (isKingAdmin) {
       // sees all
     } else if (isGroupAdmin && organizationId) {
-      // Group admin sees staff in their group's churches
       const groupOrg = orgs.find((o) => o.id === organizationId);
       if (groupOrg) {
         const childIds = orgs.filter((o) => o.parent_id === groupOrg.id).map((o) => o.id);
@@ -169,49 +193,31 @@ export default function AdminUsers() {
     } else if (organizationId) {
       list = list.filter((s) => s.organization_id === organizationId);
     }
-
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(
-        (s) =>
-          s.full_name.toLowerCase().includes(q) ||
-          (s.role && roleLabels[s.role]?.toLowerCase().includes(q))
+        (s) => s.full_name.toLowerCase().includes(q) || (s.role && roleLabels[s.role]?.toLowerCase().includes(q))
       );
     }
-
     return list;
   }, [staffList, isKingAdmin, isGroupAdmin, organizationId, orgs, searchQuery]);
 
+  // ─── Create Staff ───
   async function handleSubmit() {
     if (!fullName || !email || !password || !selectedRole) {
       toast({ title: "Missing fields", description: "Please fill all required fields", variant: "destructive" });
       return;
     }
-
     setLoading(true);
     try {
       const orgId = showChurch || showCell || showDept ? selectedChurch : showGroup ? selectedGroup : null;
       const roleTitle = roleOptions.find((r) => r.value === selectedRole)?.label || selectedRole;
       const dbRole = roleToDbRole[selectedRole] || selectedRole;
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-
       const res = await supabase.functions.invoke("create-staff-user", {
-        body: {
-          email,
-          password,
-          full_name: fullName,
-          phone_number: phone || null,
-          organization_id: orgId || null,
-          role: dbRole,
-          role_title: roleTitle,
-        },
+        body: { email, password, full_name: fullName, phone_number: phone || null, organization_id: orgId || null, role: dbRole, role_title: roleTitle },
       });
-
-      if (res.error || res.data?.error) {
-        throw new Error(res.data?.error || res.error?.message || "Failed to create user");
-      }
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message || "Failed to create user");
 
       toast({ title: "Success", description: `Staff account created for ${fullName}` });
       setDialogOpen(false);
@@ -225,15 +231,92 @@ export default function AdminUsers() {
   }
 
   function resetForm() {
-    setFullName("");
-    setEmail("");
-    setPassword("");
-    setPhone("");
-    setSelectedRole("");
-    setSelectedGroup("");
-    setSelectedChurch("");
-    setCellGroup("");
-    setDepartment("");
+    setFullName(""); setEmail(""); setPassword(""); setPhone("");
+    setSelectedRole(""); setSelectedGroup(""); setSelectedChurch("");
+    setCellGroup(""); setDepartment("");
+  }
+
+  // ─── Edit Role ───
+  function openEditRole(staff: StaffMember) {
+    setEditStaff(staff);
+    setEditRole(staff.role || "");
+    setEditGroup("");
+    setEditChurch(staff.organization_id || "");
+    setEditRoleOpen(true);
+  }
+
+  async function handleEditRole() {
+    if (!editStaff || !editRole) return;
+    setEditLoading(true);
+    try {
+      const dbRole = roleToDbRole[editRole] || editRole;
+      const roleTitle = roleOptions.find((r) => r.value === editRole)?.label || editRole;
+      const orgId = editShowChurch ? editChurch : editShowGroup ? editGroup : null;
+
+      const res = await supabase.functions.invoke("manage-staff-user", {
+        body: { action: "update_role", user_id: editStaff.user_id, role: dbRole, role_title: roleTitle, organization_id: orgId },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      toast({ title: "Success", description: `Role updated for ${editStaff.full_name}` });
+      setEditRoleOpen(false);
+      loadStaff();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  // ─── Reset Password ───
+  function openResetPw(staff: StaffMember) {
+    setResetStaff(staff);
+    setResetPassword("");
+    setResetPwOpen(true);
+  }
+
+  async function handleResetPw() {
+    if (!resetStaff || !resetPassword) return;
+    setResetLoading(true);
+    try {
+      const res = await supabase.functions.invoke("manage-staff-user", {
+        body: { action: "reset_password", user_id: resetStaff.user_id, password: resetPassword },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      toast({ title: "Success", description: "Password reset successfully" });
+      setResetPwOpen(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
+  // ─── Deactivate ───
+  function openDeactivate(staff: StaffMember) {
+    setDeactivateStaff(staff);
+    setDeactivateOpen(true);
+  }
+
+  async function handleDeactivate() {
+    if (!deactivateStaff) return;
+    setDeactivateLoading(true);
+    try {
+      const res = await supabase.functions.invoke("manage-staff-user", {
+        body: { action: "deactivate", user_id: deactivateStaff.user_id },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      toast({ title: "Success", description: `${deactivateStaff.full_name} has been deactivated` });
+      setDeactivateOpen(false);
+      // Mark locally as banned
+      setStaffList(prev => prev.map(s => s.id === deactivateStaff.id ? { ...s, is_banned: true } : s));
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeactivateLoading(false);
+    }
   }
 
   return (
@@ -254,35 +337,33 @@ export default function AdminUsers() {
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search staff..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
+        <Input placeholder="Search staff..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
       </div>
 
       {/* Staff list */}
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {filteredStaff.map((staff) => (
-          <Card key={staff.id}>
+          <Card key={staff.id} className={staff.is_banned ? "opacity-50" : ""}>
             <CardContent className="p-4 flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                 {staff.full_name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate">{staff.full_name}</p>
-                {staff.role && (
-                  <Badge variant="outline" className={`text-[10px] mt-1 ${roleBadgeColors[staff.role] || ""}`}>
-                    {roleLabels[staff.role] || staff.role}
-                  </Badge>
-                )}
-                {staff.org_name && (
-                  <p className="text-xs text-muted-foreground mt-1 truncate">{staff.org_name}</p>
-                )}
-                {staff.phone_number && (
-                  <p className="text-xs text-muted-foreground truncate">{staff.phone_number}</p>
-                )}
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {staff.role && (
+                    <Badge variant="outline" className={`text-[10px] ${roleBadgeColors[staff.role] || ""}`}>
+                      {roleLabels[staff.role] || staff.role}
+                    </Badge>
+                  )}
+                  {staff.is_banned && (
+                    <Badge variant="outline" className="text-[10px] bg-destructive/20 text-destructive border-destructive/30">
+                      Deactivated
+                    </Badge>
+                  )}
+                </div>
+                {staff.org_name && <p className="text-xs text-muted-foreground mt-1 truncate">{staff.org_name}</p>}
+                {staff.phone_number && <p className="text-xs text-muted-foreground truncate">{staff.phone_number}</p>}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -291,15 +372,9 @@ export default function AdminUsers() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => toast({ title: "Coming soon", description: "Edit role feature is in development" })}>
-                    Edit Role
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast({ title: "Coming soon", description: "Reset password feature is in development" })}>
-                    Reset Password
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive" onClick={() => toast({ title: "Coming soon", description: "Deactivate feature is in development" })}>
-                    Deactivate
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openEditRole(staff)}>Edit Role</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openResetPw(staff)}>Reset Password</DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={() => openDeactivate(staff)}>Deactivate</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </CardContent>
@@ -313,90 +388,121 @@ export default function AdminUsers() {
         )}
       </div>
 
-      {/* Add Staff Dialog */}
+      {/* ─── Add Staff Dialog ─── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Staff Member</DialogTitle>
-            <DialogDescription>Create a new staff account. They can change their password on first login.</DialogDescription>
+            <DialogDescription>Create a new staff account. They'll be prompted to change their password on first login.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            <div>
-              <Label>Full Name *</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Pastor John Doe" />
-            </div>
-            <div>
-              <Label>Email *</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" />
-            </div>
-            <div>
-              <Label>Temporary Password *</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" />
-            </div>
-            <div>
-              <Label>Phone Number</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." />
-            </div>
+            <div><Label>Full Name *</Label><Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Pastor John Doe" /></div>
+            <div><Label>Email *</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" /></div>
+            <div><Label>Temporary Password *</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" /></div>
+            <div><Label>Phone Number</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." /></div>
             <div>
               <Label>Role *</Label>
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
-                  {roleOptions.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
+                  {roleOptions.map((r) => (<SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-
             {showGroup && (
-              <div>
-                <Label>Group</Label>
+              <div><Label>Group</Label>
                 <Select value={selectedGroup} onValueChange={setSelectedGroup}>
                   <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
-                  <SelectContent>
-                    {groups.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{groups.map((g) => (<SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
             )}
-
             {showChurch && (
-              <div>
-                <Label>Church/Assembly</Label>
+              <div><Label>Church/Assembly</Label>
                 <Select value={selectedChurch} onValueChange={setSelectedChurch}>
                   <SelectTrigger><SelectValue placeholder="Select church" /></SelectTrigger>
-                  <SelectContent>
-                    {churches.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{churches.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
             )}
-
-            {showCell && (
-              <div>
-                <Label>Cell Group</Label>
-                <Input value={cellGroup} onChange={(e) => setCellGroup(e.target.value)} placeholder="Cell group name" />
-              </div>
-            )}
-
-            {showDept && (
-              <div>
-                <Label>Department</Label>
-                <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department name" />
-              </div>
-            )}
-
-            <Button onClick={handleSubmit} disabled={loading} className="w-full">
-              {loading ? "Creating..." : "Create Staff Account"}
-            </Button>
+            {showCell && (<div><Label>Cell Group</Label><Input value={cellGroup} onChange={(e) => setCellGroup(e.target.value)} placeholder="Cell group name" /></div>)}
+            {showDept && (<div><Label>Department</Label><Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department name" /></div>)}
+            <Button onClick={handleSubmit} disabled={loading} className="w-full">{loading ? "Creating..." : "Create Staff Account"}</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Edit Role Dialog ─── */}
+      <Dialog open={editRoleOpen} onOpenChange={setEditRoleOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>
+              {editStaff && <>Changing role for <strong>{editStaff.full_name}</strong>. Current: {roleLabels[editStaff.role || ""] || editStaff.role}</>}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label>New Role</Label>
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((r) => (<SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            {editShowGroup && (
+              <div><Label>Group</Label>
+                <Select value={editGroup} onValueChange={setEditGroup}>
+                  <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
+                  <SelectContent>{groups.map((g) => (<SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+            )}
+            {editShowChurch && (
+              <div><Label>Church/Assembly</Label>
+                <Select value={editChurch} onValueChange={setEditChurch}>
+                  <SelectTrigger><SelectValue placeholder="Select church" /></SelectTrigger>
+                  <SelectContent>{editChurches.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={handleEditRole} disabled={editLoading} className="w-full">{editLoading ? "Saving..." : "Save Changes"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Reset Password Dialog ─── */}
+      <Dialog open={resetPwOpen} onOpenChange={setResetPwOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>Set a new temporary password for {resetStaff?.full_name}. They'll be prompted to change it on next login.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>New Temporary Password</Label><Input type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Min 6 characters" /></div>
+            <Button onClick={handleResetPw} disabled={resetLoading} className="w-full">{resetLoading ? "Resetting..." : "Reset Password"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Deactivate Dialog ─── */}
+      <Dialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" /> Deactivate User
+            </DialogTitle>
+            <DialogDescription>
+              This will prevent <strong>{deactivateStaff?.full_name}</strong> from logging in. Are you sure?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeactivateOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeactivate} disabled={deactivateLoading}>
+              {deactivateLoading ? "Deactivating..." : "Deactivate"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

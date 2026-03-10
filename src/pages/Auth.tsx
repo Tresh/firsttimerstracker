@@ -1,15 +1,30 @@
 import { useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { KingsRetentionLogo } from "@/components/KingsRetentionLogo";
+
+const roleRedirectMap: Record<string, string> = {
+  king_admin: "/dashboard",
+  admin: "/dashboard",
+  erediauwa_admin: "/dashboard",
+  loveworldcity_admin: "/dashboard",
+  youth_teens_admin: "/dashboard",
+  church_pastor: "/dashboard",
+  pastor: "/dashboard",
+  reception_team: "/welcome-desk",
+  cell_leader: "/follow-up",
+  follow_up_team: "/follow-up",
+  foundation_school_staff: "/foundation-school",
+  foundation_school_leader: "/foundation-school",
+  department_head: "/departments",
+  department_staff: "/departments",
+};
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
@@ -35,13 +50,31 @@ export default function Auth() {
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // Check role for redirect
+
         const userId = signInData.user?.id;
-        let redirect = searchParams.get("redirect") || "/dashboard";
-        if (userId) {
-          const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", userId).single();
-          if (roleData?.role === "reception_team") redirect = "/welcome-desk";
+        if (!userId) throw new Error("Login failed");
+
+        // Check must_change_password
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("must_change_password")
+          .eq("user_id", userId)
+          .single();
+
+        if ((profileData as any)?.must_change_password === true) {
+          navigate("/change-password");
+          return;
         }
+
+        // Role-based redirect
+        const explicitRedirect = searchParams.get("redirect");
+        if (explicitRedirect) {
+          navigate(explicitRedirect);
+          return;
+        }
+
+        const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", userId).single();
+        const redirect = roleData?.role ? (roleRedirectMap[roleData.role] || "/dashboard") : "/dashboard";
         navigate(redirect);
       }
     } catch (error: any) {
@@ -53,7 +86,6 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background p-4">
-      {/* Background decoration */}
       <div className="absolute inset-0 gradient-primary opacity-[0.04]" />
       <div className="absolute top-10 left-10 w-72 h-72 rounded-full bg-primary/10 blur-[100px]" />
       <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-accent/10 blur-[100px]" />

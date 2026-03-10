@@ -9,6 +9,7 @@ export type UserProfile = {
   phone_number: string | null;
   organization_id: string | null;
   role_title: string | null;
+  must_change_password: boolean;
 };
 
 export type AppRole =
@@ -66,7 +67,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchProfileAndRole = useCallback(async (userId: string) => {
     const [profileRes, roleRes] = await Promise.all([
-      supabase.from("profiles").select("id, user_id, full_name, phone_number, organization_id, role_title").eq("user_id", userId).single(),
+      supabase.from("profiles").select("id, user_id, full_name, phone_number, organization_id, role_title, must_change_password").eq("user_id", userId).single(),
       supabase.from("user_roles").select("role").eq("user_id", userId).single(),
     ]);
     setProfile(profileRes.data as UserProfile | null);

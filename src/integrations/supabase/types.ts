@@ -514,6 +514,7 @@ export type Database = {
           created_at: string | null
           full_name: string
           id: string
+          must_change_password: boolean | null
           organization_id: string | null
           phone_number: string | null
           role_title: string | null
@@ -525,6 +526,7 @@ export type Database = {
           created_at?: string | null
           full_name: string
           id?: string
+          must_change_password?: boolean | null
           organization_id?: string | null
           phone_number?: string | null
           role_title?: string | null
@@ -536,6 +538,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string
           id?: string
+          must_change_password?: boolean | null
           organization_id?: string | null
           phone_number?: string | null
           role_title?: string | null

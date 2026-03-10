@@ -25,6 +25,7 @@ import EmpTracker from "./pages/EmpTracker";
 import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
 import AdminUsers from "./pages/AdminUsers";
+import ChangePassword from "./pages/ChangePassword";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/attend" element={<AttendanceScan />} />
+            <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/welcome-desk" element={<WelcomeDesk />} />
               <Route element={<Layout />}>
