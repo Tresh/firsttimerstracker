@@ -1,69 +1,132 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Users, UserPlus, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { BarChart3, Users, UserPlus, TrendingUp, CheckCircle2, MapPin, GraduationCap } from "lucide-react";
+
+const statusColors: Record<string, string> = {
+  "First Timer": "bg-warning",
+  "Second Timer": "bg-primary",
+  "New Convert": "bg-purple-500",
+  "Member": "bg-success",
+  "Worker": "bg-info",
+};
 
 export default function Analytics() {
-  const [stats, setStats] = useState({ total: 0, firstTimers: 0, retained: 0, followUps: 0, retentionRate: 0 });
+  const [members, setMembers] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetch() {
-      const [totalRes, ftRes, retainedRes, fuRes] = await Promise.all([
-        supabase.from("members").select("id", { count: "exact", head: true }),
-        supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "First Timer"),
-        supabase.from("members").select("id", { count: "exact", head: true }).in("status", ["Member", "Worker"]),
-        supabase.from("follow_up_tasks").select("id", { count: "exact", head: true }).eq("completed", true),
+      const [mRes, tRes] = await Promise.all([
+        supabase.from("members").select("*"),
+        supabase.from("follow_up_tasks").select("*").eq("completed", true),
       ]);
-      const total = totalRes.count || 0;
-      const retained = retainedRes.count || 0;
-      setStats({
-        total, firstTimers: ftRes.count || 0, retained, followUps: fuRes.count || 0,
-        retentionRate: total > 0 ? Math.round((retained / total) * 100) : 0,
-      });
+      setMembers(mRes.data || []);
+      setTasks(tRes.data || []);
     }
     fetch();
   }, []);
 
-  const cards = [
-    { icon: <Users className="h-5 w-5" />, title: "Total Members", value: stats.total, color: "text-primary", bg: "gradient-primary", iconColor: "text-primary-foreground" },
-    { icon: <UserPlus className="h-5 w-5" />, title: "First Timers", value: stats.firstTimers, color: "text-accent", bg: "bg-accent/20", iconColor: "text-accent" },
-    { icon: <TrendingUp className="h-5 w-5" />, title: "Retained", value: stats.retained, color: "text-success", bg: "bg-success/20", iconColor: "text-success" },
-    { icon: <CheckCircle2 className="h-5 w-5" />, title: "Follow-Ups Done", value: stats.followUps, color: "text-info", bg: "bg-info/20", iconColor: "text-info" },
+  const total = members.length;
+  const retained = members.filter(m => ["Member", "Worker"].includes(m.status)).length;
+  const retentionRate = total ? Math.round((retained / total) * 100) : 0;
+  const foundationSchool = members.filter(m => m.started_foundation_school).length;
+  const inCellGroup = members.filter(m => m.assigned_cell_group).length;
+  const inDepartment = members.filter(m => m.department_joined).length;
+
+  // Status breakdown
+  const statusData: Record<string, number> = {};
+  members.forEach(m => { statusData[m.status] = (statusData[m.status] || 0) + 1; });
+
+  // Location data
+  const locationData: Record<string, number> = {};
+  members.forEach(m => { const l = (m.location || "").trim(); if (l) locationData[l] = (locationData[l] || 0) + 1; });
+
+  const metrics = [
+    { label: "Total First Timers", value: members.filter(m => m.status === "First Timer").length, color: "text-primary" },
+    { label: "Total Members", value: total, color: "text-foreground" },
+    { label: "Retention Rate", value: `${retentionRate}%`, color: "text-success" },
+    { label: "Members Retained", value: retained, color: "text-success" },
+    { label: "Visitors Lost", value: total - retained, color: "text-destructive" },
+    { label: "Follow-Ups Done", value: tasks.length, color: "text-info" },
+    { label: "Foundation School", value: `${total ? Math.round((foundationSchool / total) * 100) : 0}%`, color: "text-purple-400" },
+    { label: "In Cell Groups", value: `${total ? Math.round((inCellGroup / total) * 100) : 0}%`, color: "text-accent" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-display font-extrabold text-foreground">Analytics</h2>
-        <p className="text-muted-foreground mt-1">Church growth metrics at a glance</p>
+        <p className="text-muted-foreground mt-1">Church growth intelligence</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((c, i) => (
-          <Card key={i}>
-            <CardContent className="p-5 text-center">
-              <div className={`${c.bg} p-3 rounded-xl w-fit mx-auto mb-3`}><span className={c.iconColor}>{c.icon}</span></div>
-              <p className={`text-3xl font-display font-extrabold ${c.color}`}>{c.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{c.title}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {metrics.map(m => (
+          <Card key={m.label}>
+            <CardContent className="p-4">
+              <p className={`text-2xl font-display font-extrabold ${m.color}`}>{m.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{m.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Status Breakdown */}
       <Card>
-        <CardHeader className="flex flex-row items-center gap-3">
-          <div className="gradient-primary p-2.5 rounded-xl"><BarChart3 className="h-5 w-5 text-primary-foreground" /></div>
-          <CardTitle>Retention Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground">Overall Retention Rate</span>
-            <span className="text-4xl font-display font-extrabold gradient-gold">{stats.retentionRate}%</span>
-          </div>
-          <div className="h-4 rounded-full progress-bar-track overflow-hidden">
-            <div className="h-full rounded-full progress-bar-fill transition-all duration-1000" style={{ width: `${stats.retentionRate}%` }} />
-          </div>
-          <p className="text-sm text-muted-foreground mt-3">{stats.retained} out of {stats.total} members retained as active members or workers.</p>
+        <CardContent className="p-5">
+          <h3 className="font-display font-bold text-foreground mb-4">Member Status Breakdown</h3>
+          {Object.entries(statusData).map(([status, count]) => (
+            <div key={status} className="mb-3">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-foreground">{status}</span>
+                <span className="font-bold text-foreground">{count} ({total ? Math.round((count / total) * 100) : 0}%)</span>
+              </div>
+              <div className="h-2 rounded-full progress-bar-track overflow-hidden">
+                <div className={`h-full rounded-full ${statusColors[status] || "bg-primary"}`} style={{ width: `${total ? (count / total) * 100 : 0}%` }} />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Geographic Distribution */}
+      <Card>
+        <CardContent className="p-5">
+          <h3 className="font-display font-bold text-foreground mb-4">Geographic Distribution</h3>
+          {Object.entries(locationData).sort((a, b) => b[1] - a[1]).map(([loc, count]) => (
+            <div key={loc} className="mb-3">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{loc}</span>
+                <span className="font-bold text-foreground">{count}</span>
+              </div>
+              <div className="h-2 rounded-full progress-bar-track overflow-hidden">
+                <div className="h-full rounded-full bg-success" style={{ width: `${total ? (count / total) * 100 : 0}%` }} />
+              </div>
+            </div>
+          ))}
+          {Object.keys(locationData).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No location data.</p>}
+        </CardContent>
+      </Card>
+
+      {/* Key Milestones */}
+      <Card>
+        <CardContent className="p-5">
+          <h3 className="font-display font-bold text-foreground mb-4">Key Milestones</h3>
+          {[
+            { label: "📚 Foundation School", val: foundationSchool, color: "bg-purple-500" },
+            { label: "👥 In Cell Group", val: inCellGroup, color: "bg-success" },
+            { label: "🏛 In Department", val: inDepartment, color: "bg-warning" },
+          ].map(({ label, val, color }) => (
+            <div key={label} className="mb-3">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-foreground">{label}</span>
+                <span className="font-bold text-foreground">{val}/{total}</span>
+              </div>
+              <div className="h-2 rounded-full progress-bar-track overflow-hidden">
+                <div className={`h-full rounded-full ${color}`} style={{ width: `${total ? (val / total) * 100 : 0}%` }} />
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
