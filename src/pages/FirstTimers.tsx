@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { scopeQuery } from "@/utils/scopeQuery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,7 @@ function getCompleteness(m: any): number {
 }
 
 export default function FirstTimers() {
-  const { profile, isKingAdmin, isGroupAdmin, organizationId } = useAuth();
+  const { profile, isKingAdmin, isGroupAdmin, organizationId, role } = useAuth();
   const [members, setMembers] = useState<any[]>([]);
   const [followUpTasks, setFollowUpTasks] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -89,9 +90,7 @@ export default function FirstTimers() {
 
   const fetchData = useCallback(async () => {
     let membersQuery = supabase.from("members").select("*, organizations(name)").in("status", ["First Timer", "Second Timer", "New Convert"]).order("date_of_first_visit", { ascending: false });
-    if (!isKingAdmin && !isGroupAdmin && organizationId) {
-      membersQuery = membersQuery.eq("organization_id", organizationId);
-    }
+    membersQuery = scopeQuery(membersQuery, role, organizationId);
     const [membersRes, tasksRes] = await Promise.all([
       membersQuery,
       supabase.from("follow_up_tasks").select("*"),

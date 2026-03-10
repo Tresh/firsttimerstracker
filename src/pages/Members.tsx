@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { scopeQuery } from "@/utils/scopeQuery";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Members() {
+  const { role, organizationId } = useAuth();
   const [members, setMembers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -29,11 +32,14 @@ export default function Members() {
     status: "Member" as "First Timer" | "Second Timer" | "New Convert" | "Member" | "Worker",
   });
 
-  const fetchMembers = async () => {
-    const { data } = await supabase.from("members").select("*").order("created_at", { ascending: false });
+  const fetchMembers = useCallback(async () => {
+    let query = supabase.from("members").select("*").order("created_at", { ascending: false });
+    query = scopeQuery(query, role, organizationId);
+    const { data } = await query;
     setMembers(data || []);
-  };
-  useEffect(() => { fetchMembers(); }, []);
+  }, [role, organizationId]);
+
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
