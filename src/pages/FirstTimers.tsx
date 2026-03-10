@@ -90,9 +90,7 @@ export default function FirstTimers() {
 
   const fetchData = useCallback(async () => {
     let membersQuery = supabase.from("members").select("*, organizations(name)").in("status", ["First Timer", "Second Timer", "New Convert"]).order("date_of_first_visit", { ascending: false });
-    if (!isKingAdmin && !isGroupAdmin && organizationId) {
-      membersQuery = membersQuery.eq("organization_id", organizationId);
-    }
+    membersQuery = scopeQuery(membersQuery, role, organizationId);
     const [membersRes, tasksRes] = await Promise.all([
       membersQuery,
       supabase.from("follow_up_tasks").select("*"),
