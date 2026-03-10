@@ -54,7 +54,11 @@ export default function FirstTimers() {
 
   // Org dropdowns for admins
   const [groups, setGroups] = useState<any[]>([]);
+  const [allChurches, setAllChurches] = useState<any[]>([]);
   const [churches, setChurches] = useState<any[]>([]);
+  
+  // Church filter for page view
+  const [filterChurchId, setFilterChurchId] = useState<string>("all");
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   // Invited-by search
@@ -98,21 +102,27 @@ export default function FirstTimers() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Load groups for admins
+  // Load orgs for admins
   useEffect(() => {
     if (isKingAdmin || isGroupAdmin) {
-      supabase.from("organizations").select("id, name").eq("level", "group").then(({ data }) => setGroups(data || []));
+      supabase.from("organizations").select("id, name, level, parent_id").order("name").then(({ data }) => {
+        const orgs = data || [];
+        setGroups(orgs.filter(o => o.level === "group"));
+        const churchOrgs = orgs.filter(o => o.level === "church");
+        setAllChurches(churchOrgs);
+        setChurches(churchOrgs);
+      });
     }
   }, [isKingAdmin, isGroupAdmin]);
 
-  // Load churches when group selected
+  // Filter churches when group selected in form
   useEffect(() => {
     if (selectedGroupId) {
-      supabase.from("organizations").select("id, name").eq("level", "church").eq("parent_id", selectedGroupId).then(({ data }) => setChurches(data || []));
+      setChurches(allChurches.filter(c => c.parent_id === selectedGroupId));
     } else {
-      setChurches([]);
+      setChurches(allChurches);
     }
-  }, [selectedGroupId]);
+  }, [selectedGroupId, allChurches]);
 
   // Invited-by search
   useEffect(() => {
@@ -186,9 +196,11 @@ export default function FirstTimers() {
     fetchData();
   };
 
-  const filtered = members.filter(m =>
-    m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || m.phone_number?.includes(searchTerm)
-  );
+  const filtered = members.filter(m => {
+    const matchesSearch = m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || m.phone_number?.includes(searchTerm);
+    const matchesChurch = filterChurchId === "all" || m.organization_id === filterChurchId;
+    return matchesSearch && matchesChurch;
+  });
 
   return (
     <div className="space-y-6">
@@ -246,17 +258,17 @@ export default function FirstTimers() {
                     {(isKingAdmin || isGroupAdmin) ? (
                       <>
                         <div className="space-y-2">
-                          <Label>Group</Label>
-                          <Select value={selectedGroupId} onValueChange={v => { setSelectedGroupId(v); setFormData({ ...formData, organization_id: "" }); }}>
-                            <SelectTrigger className="h-11"><SelectValue placeholder="Select group" /></SelectTrigger>
-                            <SelectContent>{groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
+                          <Label>Church / Assembly</Label>
+                          <Select value={formData.organization_id} onValueChange={v => setFormData({ ...formData, organization_id: v })}>
+                            <SelectTrigger className="h-11"><SelectValue placeholder="Select church" /></SelectTrigger>
+                            <SelectContent>{churches.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Church / Assembly</Label>
-                          <Select value={formData.organization_id} onValueChange={v => setFormData({ ...formData, organization_id: v })} disabled={!selectedGroupId}>
-                            <SelectTrigger className="h-11"><SelectValue placeholder={selectedGroupId ? "Select church" : "Select group first"} /></SelectTrigger>
-                            <SelectContent>{churches.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                          <Label>Group (optional filter)</Label>
+                          <Select value={selectedGroupId} onValueChange={v => { setSelectedGroupId(v); setFormData({ ...formData, organization_id: "" }); }}>
+                            <SelectTrigger className="h-11"><SelectValue placeholder="All groups" /></SelectTrigger>
+                            <SelectContent>{groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                       </>
@@ -344,6 +356,35 @@ export default function FirstTimers() {
           <Button variant="outline" className="gap-2" onClick={() => toast.info("Excel import coming soon!")}><FileSpreadsheet className="h-4 w-4 text-success" />Import</Button>
         </div>
       </div>
+
+      {/* Church filter chips — admin only */}
+      {(isKingAdmin || isGroupAdmin) && allChurches.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilterChurchId("all")}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              filterChurchId === "all"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
+            }`}
+          >
+            All
+          </button>
+          {allChurches.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setFilterChurchId(c.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                filterChurchId === c.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
