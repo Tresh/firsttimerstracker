@@ -943,8 +943,13 @@ function StaffView() {
         <CardContent className="space-y-3">
           {filteredVerification.length === 0 ? (
             <p className="text-center text-muted-foreground py-6">No tasks waiting for verification 🎉</p>
-          ) : filteredVerification.map(task => (
-            <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
+          ) : filteredVerification.map(task => {
+            const hasProof = task.proof_id;
+            const isVisit = task.task_category === "visit";
+            const isManualOverride = task.is_manual_override;
+            return (
+            <div key={task.id} className="p-3 rounded-xl bg-secondary/30 space-y-2">
+              <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
                 {getMemberName(task.member_id).charAt(0)}
               </div>
@@ -961,8 +966,21 @@ function StaffView() {
                 <Button size="sm" className="bg-success hover:bg-success/80 text-success-foreground" onClick={() => handleVerify(task)}>✓ Verify</Button>
                 <Button size="sm" variant="destructive" onClick={() => setRejectDialog(task)}>✗ Reject</Button>
               </div>
+              </div>
+              {/* Proof display for visit tasks */}
+              {isVisit && isManualOverride && (
+                <div className="ml-[52px] bg-warning/10 border border-warning/30 rounded-lg p-2">
+                  <p className="text-xs text-warning font-medium">⚠️ No proof provided — {task.override_reason || "No reason given"}</p>
+                </div>
+              )}
+              {isVisit && hasProof && !isManualOverride && (
+                <div className="ml-[52px] text-xs text-muted-foreground">
+                  <span className="text-success font-medium">📸 Photo proof attached</span>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 
