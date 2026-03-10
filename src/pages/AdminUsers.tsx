@@ -140,6 +140,10 @@ export default function AdminUsers() {
   const [testLoading, setTestLoading] = useState(false);
   const [testProgress, setTestProgress] = useState("");
 
+  // Assign test members
+  const [assignTestOpen, setAssignTestOpen] = useState(false);
+  const [assignTestLoading, setAssignTestLoading] = useState(false);
+
   const groups = useMemo(() => orgs.filter(o => o.level === "group"), [orgs]);
   const allChurches = useMemo(() => orgs.filter(o => o.level === "church"), [orgs]);
   const getChurches = (groupId: string) => groupId ? allChurches.filter(c => c.parent_id === groupId) : allChurches;
