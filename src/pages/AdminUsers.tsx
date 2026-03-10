@@ -442,9 +442,21 @@ export default function AdminUsers() {
           <h1 className="text-2xl font-display font-bold text-foreground">User Management</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage all staff accounts and roles</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" /> Add Staff Member
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {isKingAdmin && (
+            <>
+              <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setTestDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-1" /> Delete Test Accounts
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTestCreateOpen(true)}>
+                <FlaskConical className="h-4 w-4 mr-1" /> Create Test Accounts
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" /> Add Staff Member
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
