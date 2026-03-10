@@ -360,6 +360,59 @@ export default function AdminUsers() {
     }
   }
 
+  // ─── Test Accounts ───
+  async function handleCreateTestAccounts() {
+    setTestLoading(true);
+    setTestProgress("Creating 7 test accounts...");
+    try {
+      const res = await supabase.functions.invoke("manage-test-accounts", {
+        body: { action: "create" },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      const results = res.data?.results || [];
+      const successCount = results.filter((r: any) => r.success).length;
+      const failures = results.filter((r: any) => !r.success);
+
+      if (failures.length > 0) {
+        toast({
+          title: `✅ ${successCount} of 7 test accounts created`,
+          description: `Failed: ${failures.map((f: any) => `${f.email}: ${f.error}`).join(", ")}`,
+          variant: successCount > 0 ? "default" : "destructive",
+        });
+      } else {
+        toast({ title: "✅ 7 test accounts created!", description: "Password for all: Test1234!" });
+      }
+      setTestCreateOpen(false);
+      loadStaff();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setTestLoading(false);
+      setTestProgress("");
+    }
+  }
+
+  async function handleDeleteTestAccounts() {
+    setTestLoading(true);
+    setTestProgress("Deleting test accounts...");
+    try {
+      const res = await supabase.functions.invoke("manage-test-accounts", {
+        body: { action: "delete" },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || res.error?.message);
+
+      toast({ title: "✅ Test accounts deleted", description: `${res.data?.deleted || 0} accounts removed` });
+      setTestDeleteOpen(false);
+      loadStaff();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setTestLoading(false);
+      setTestProgress("");
+    }
+  }
+
   if (pageLoading) {
     return (
       <div className="space-y-6">
