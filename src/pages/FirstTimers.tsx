@@ -178,7 +178,7 @@ export default function FirstTimers() {
   };
 
   const updateStatus = async (memberId: string, newStatus: string) => {
-    const { error } = await supabase.from("members").update({ status: newStatus }).eq("id", memberId);
+    const { error } = await supabase.from("members").update({ status: newStatus as "First Timer" | "Second Timer" | "New Convert" | "Member" | "Worker" }).eq("id", memberId);
     if (error) { toast.error(error.message); return; }
     toast.success(`Status updated to ${newStatus}`);
     setSelectedMember((prev: any) => prev ? { ...prev, status: newStatus } : null);
