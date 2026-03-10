@@ -338,14 +338,14 @@ function CellLeaderView() {
         )}
       </div>
 
-      {/* Task completion dialog */}
-      <Dialog open={!!taskDialog} onOpenChange={(open) => { if (!open) { setTaskDialog(null); setTaskNote(""); } }}>
-        <DialogContent className="bg-card border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-display flex items-center gap-2">
+      {/* Task completion bottom sheet */}
+      <Drawer open={!!taskDialog} onOpenChange={(open) => { if (!open) { setTaskDialog(null); setTaskNote(""); } }}>
+        <DrawerContent className="bg-card border-border px-4 pb-8">
+          <DrawerHeader className="px-0">
+            <DrawerTitle className="text-lg font-display flex items-center gap-2">
               <span className="text-2xl">{taskDialog?.task_emoji}</span> {taskDialog?.task_name}
-            </DialogTitle>
-          </DialogHeader>
+            </DrawerTitle>
+          </DrawerHeader>
           <div className="space-y-4 mt-2">
             {taskDialog?.task_category === "call" ? (
               <div className="space-y-3">
@@ -380,8 +380,8 @@ function CellLeaderView() {
             )}
             <Textarea placeholder="Optional note..." value={taskNote} onChange={e => setTaskNote(e.target.value)} className={taskDialog?.task_category === "visit" ? "hidden" : ""} />
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
       {/* Bottom tab bar */}
       <div className="fixed bottom-0 left-0 right-0 glass-navbar z-40 flex justify-around py-2 px-2 safe-area-bottom">
