@@ -32,7 +32,7 @@ export default function Leaders() {
         if (t.assigned_to) {
           if (!taskMap[t.assigned_to]) taskMap[t.assigned_to] = { total: 0, completed: 0 };
           taskMap[t.assigned_to].total++;
-          if (t.completed) taskMap[t.assigned_to].completed++;
+          if (t.status === "verified" || t.status === "done") taskMap[t.assigned_to].completed++;
         }
       });
 
