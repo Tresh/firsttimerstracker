@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +21,17 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify caller is king_admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -28,10 +39,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
-    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!, {
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+    const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller } } = await callerClient.auth.getUser();
@@ -41,9 +54,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    // Check caller is king_admin
     const { data: callerRole } = await adminClient
       .from("user_roles").select("role").eq("user_id", caller.id).single();
 
@@ -54,28 +64,31 @@ Deno.serve(async (req) => {
     }
 
     const { action } = await req.json();
+    console.log("Action:", action);
 
     if (action === "create") {
       // Look up org IDs
-      const { data: churchOrg } = await adminClient
+      const { data: churchOrg, error: churchErr } = await adminClient
         .from("organizations").select("id").eq("name", "Pillars Erediauwa").single();
-      const { data: groupOrg } = await adminClient
+      const { data: groupOrg, error: groupErr } = await adminClient
         .from("organizations").select("id").eq("name", "Erediauwa Group").single();
 
+      console.log("Church org:", churchOrg, "error:", churchErr);
+      console.log("Group org:", groupOrg, "error:", groupErr);
+
       if (!churchOrg || !groupOrg) {
-        return new Response(JSON.stringify({ error: "Could not find Pillars Erediauwa or Erediauwa Group organizations. Please create them first." }), {
+        return new Response(JSON.stringify({ error: "Could not find Pillars Erediauwa or Erediauwa Group organizations." }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const results: { index: number; email: string; success: boolean; error?: string }[] = [];
+      const results: { email: string; success: boolean; error?: string }[] = [];
 
-      for (let i = 0; i < TEST_ACCOUNTS.length; i++) {
-        const acct = TEST_ACCOUNTS[i];
+      for (const acct of TEST_ACCOUNTS) {
         const orgId = acct.org_key === "group" ? groupOrg.id : churchOrg.id;
+        console.log(`Creating ${acct.email} with role ${acct.role}, org ${orgId}`);
 
         try {
-          // Create auth user
           const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
             email: acct.email,
             password: "Test1234!",
@@ -84,39 +97,49 @@ Deno.serve(async (req) => {
           });
 
           if (createError) {
-            results.push({ index: i, email: acct.email, success: false, error: createError.message });
+            console.error(`Auth error for ${acct.email}:`, createError.message);
+            if (createError.message.includes("already been registered") || createError.message.includes("already exists")) {
+              results.push({ email: acct.email, success: false, error: "Already exists, skipped" });
+              continue;
+            }
+            results.push({ email: acct.email, success: false, error: createError.message });
             continue;
           }
 
           const userId = newUser.user.id;
+          console.log(`User created: ${acct.email} -> ${userId}`);
 
-          // Update profile
-          await adminClient.from("profiles").update({
+          // Update profile (trigger auto-creates it via handle_new_user)
+          const { error: profErr } = await adminClient.from("profiles").update({
             full_name: acct.name,
             organization_id: orgId,
             role_title: acct.role_title,
             must_change_password: false,
           }).eq("user_id", userId);
 
+          if (profErr) console.error(`Profile update error for ${acct.email}:`, profErr.message);
+
           // Insert role
-          await adminClient.from("user_roles").insert({
+          const { error: roleErr } = await adminClient.from("user_roles").insert({
             user_id: userId,
             role: acct.role,
           });
 
-          results.push({ index: i, email: acct.email, success: true });
+          if (roleErr) console.error(`Role insert error for ${acct.email}:`, roleErr.message);
+
+          results.push({ email: acct.email, success: true });
         } catch (err: any) {
-          results.push({ index: i, email: acct.email, success: false, error: err.message });
+          console.error(`Unexpected error for ${acct.email}:`, err.message);
+          results.push({ email: acct.email, success: false, error: err.message });
         }
       }
 
       return new Response(JSON.stringify({ success: true, results }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (action === "delete") {
-      // Find all users with @test.com emails
       const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
       if (listError) throw listError;
 
@@ -124,15 +147,16 @@ Deno.serve(async (req) => {
       const deletedEmails: string[] = [];
 
       for (const user of testUsers) {
-        // Delete from user_roles and profiles first (cascade should handle but be explicit)
+        console.log(`Deleting test user: ${user.email}`);
         await adminClient.from("user_roles").delete().eq("user_id", user.id);
         await adminClient.from("profiles").delete().eq("user_id", user.id);
         const { error } = await adminClient.auth.admin.deleteUser(user.id);
         if (!error) deletedEmails.push(user.email || "");
+        else console.error(`Delete error for ${user.email}:`, error.message);
       }
 
       return new Response(JSON.stringify({ success: true, deleted: deletedEmails.length, emails: deletedEmails }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -140,6 +164,7 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
+    console.error("Top-level error:", err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
