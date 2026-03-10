@@ -638,19 +638,80 @@ function CellLeaderView() {
         )}
       </div>
 
+      {/* Hidden file input for photo proof */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && taskDialog) handleVisitPhotoProof(taskDialog, file);
+          e.target.value = "";
+        }}
+      />
+
       {/* Task completion — fixed bottom panel */}
       {taskDialog && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => { setTaskDialog(null); setTaskNote(""); setProofMode(null); setManualOverrideReason(""); }}>
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative bg-card border-t border-border rounded-t-2xl p-6 pb-8 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <button className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
+            <button className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => { setTaskDialog(null); setTaskNote(""); setProofMode(null); setManualOverrideReason(""); }}>
               <X className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-3 pr-8">
               <span className="text-3xl">{taskDialog.task_emoji || "📋"}</span>
               <p className="text-lg font-bold text-foreground">{taskDialog.task_name}</p>
             </div>
-            {taskDialog.task_category === "call" ? (
+
+            {/* HOUSE VISIT TASKS */}
+            {taskDialog.task_category === "visit" ? (
+              proofMode === null || proofMode === "choose" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">How would you like to log this visit?</p>
+                  <button
+                    className="w-full h-14 rounded-xl bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingProof}
+                  >
+                    <Camera className="h-5 w-5" /> 📸 Take Photo as Proof
+                  </button>
+                  <button
+                    className="w-full h-14 rounded-xl bg-primary/15 text-primary text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
+                    onClick={() => handleVisitGPSOnly(taskDialog)}
+                    disabled={uploadingProof}
+                  >
+                    <MapPin className="h-5 w-5" /> 📍 Use GPS Only
+                  </button>
+                  <button
+                    className="text-sm text-muted-foreground underline hover:text-foreground transition-colors text-center w-full"
+                    onClick={() => setProofMode("manual")}
+                  >
+                    ✏️ Mark Without Proof (explain why)
+                  </button>
+                  {uploadingProof && <p className="text-center text-sm text-muted-foreground">Uploading...</p>}
+                </div>
+              ) : proofMode === "manual" ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-warning font-medium">⚠️ No proof provided — this will be flagged for review.</p>
+                  <Textarea
+                    placeholder="Why can't you provide proof? (required)"
+                    value={manualOverrideReason}
+                    onChange={e => setManualOverrideReason(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                  <Button
+                    className="w-full h-12"
+                    disabled={!manualOverrideReason.trim() || uploadingProof}
+                    onClick={() => handleVisitManual(taskDialog)}
+                  >
+                    Submit Without Proof
+                  </Button>
+                  <button className="text-sm text-muted-foreground underline text-center w-full" onClick={() => setProofMode("choose")}>Back</button>
+                </div>
+              ) : null
+            ) : taskDialog.task_category === "call" ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">How did the call go?</p>
                 <button className="w-full h-14 rounded-xl gradient-primary text-primary-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80" onClick={() => handleMarkDone(taskDialog, "answered")}>✅ Answered</button>
