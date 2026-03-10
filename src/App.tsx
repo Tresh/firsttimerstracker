@@ -21,6 +21,7 @@ import ImportData from "./pages/ImportData";
 import Settings from "./pages/Settings";
 import GlobalCommand from "./pages/GlobalCommand";
 import NotFound from "./pages/NotFound";
+import WelcomeDesk from "./pages/WelcomeDesk";
 
 const queryClient = new QueryClient();
 
