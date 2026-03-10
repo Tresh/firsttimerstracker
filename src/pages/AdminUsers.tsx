@@ -112,9 +112,6 @@ export default function AdminUsers() {
     return all;
   }, [orgs, selectedGroup]);
 
-  const selectedRoleOption = roleOptions.find((r) => r.value === selectedRole && r.label.includes(
-    selectedRole === "church_pastor" ? (selectedRole === "church_pastor" ? "" : "") : ""
-  ));
   const roleLevel = roleOptions.find(r => r.value === selectedRole)?.level || "top";
   const showGroup = ["group"].includes(roleLevel);
   const showChurch = ["church", "cell", "department"].includes(roleLevel);
