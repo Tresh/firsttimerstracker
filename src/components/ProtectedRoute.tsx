@@ -1,8 +1,9 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const ProtectedRoute = () => {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, role } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -17,6 +18,12 @@ export const ProtectedRoute = () => {
 
   if (!session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Role-based default redirect: reception_team → /welcome-desk, others → /dashboard
+  if (location.pathname === "/auth" || location.pathname === "/") {
+    const defaultRoute = role === "reception_team" ? "/welcome-desk" : "/dashboard";
+    return <Navigate to={defaultRoute} replace />;
   }
 
   return <Outlet />;
