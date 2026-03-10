@@ -22,6 +22,9 @@ export type AppRole =
   | "cell_leader"
   | "follow_up_team"
   | "department_head"
+  | "department_staff"
+  | "foundation_school_staff"
+  | "foundation_school_leader"
   | "pastor";
 
 type AuthContextType = {
