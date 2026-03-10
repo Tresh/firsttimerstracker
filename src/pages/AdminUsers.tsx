@@ -19,7 +19,7 @@ type RoleOption = {
 };
 
 const roleOptions: RoleOption[] = [
-  { label: "👑 Zonal Pastor", value: "church_pastor", level: "top" },
+  { label: "👑 Zonal Pastor", value: "zonal_pastor", level: "top" },
   { label: "🏛 Group Leader", value: "pastor", level: "group" },
   { label: "🏛 Group Admin/Staff (Erediauwa)", value: "erediauwa_admin", level: "group" },
   { label: "🏛 Group Admin/Staff (LoveworldCity)", value: "loveworldcity_admin", level: "group" },
@@ -33,6 +33,11 @@ const roleOptions: RoleOption[] = [
   { label: "🏢 Department Leader", value: "department_head", level: "department" },
   { label: "🏢 Department Staff", value: "department_staff", level: "department" },
 ];
+
+// Map UI-only values to actual DB enum values
+const roleToDbRole: Record<string, string> = {
+  zonal_pastor: "church_pastor",
+};
 
 const roleBadgeColors: Record<string, string> = {
   king_admin: "bg-amber-500/20 text-amber-400 border-amber-500/30",
