@@ -27,6 +27,7 @@ const items = [
   { title: "Leaders", url: "/leaders", icon: Award },
   { title: "Departments", url: "/departments", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Global Command", url: "/global", icon: LayoutDashboard },
   { title: "Import Data", url: "/import", icon: Import },
   { title: "Settings", url: "/settings", icon: Settings },
 ]

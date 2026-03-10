@@ -19,6 +19,7 @@ import Departments from "./pages/Departments";
 import Analytics from "./pages/Analytics";
 import ImportData from "./pages/ImportData";
 import Settings from "./pages/Settings";
+import GlobalCommand from "./pages/GlobalCommand";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,11 +32,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
-
-            {/* Protected Dashboard */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
@@ -47,11 +45,11 @@ const App = () => (
                 <Route path="/leaders" element={<Leaders />} />
                 <Route path="/departments" element={<Departments />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/global" element={<GlobalCommand />} />
                 <Route path="/import" element={<ImportData />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

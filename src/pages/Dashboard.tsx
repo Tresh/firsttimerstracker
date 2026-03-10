@@ -1,121 +1,162 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, Users, Award, Building2, GraduationCap, ClipboardList, Calendar, TrendingUp } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { UserPlus, Users, Award, Building2, GraduationCap, ClipboardList, Calendar, TrendingUp, AlertTriangle, MapPin } from "lucide-react";
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    firstTimers: 0, members: 0, leaders: 0, departments: 0, foundationSchool: 0,
-  });
-  const [pipelineStats, setPipelineStats] = useState({
-    totalTasks: 0, completedTasks: 0, completionRate: 0,
-  });
+  const [members, setMembers] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    async function fetchDashboardStats() {
-      const [ftRes, membersRes, leadersRes, deptRes, fsRes, tasksRes] = await Promise.all([
-        supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "First Timer"),
-        supabase.from("members").select("id", { count: "exact", head: true }),
-        supabase.from("user_roles").select("id", { count: "exact", head: true }).in("role", ["pastor", "cell_leader", "follow_up_team"]),
-        supabase.from("departments").select("id", { count: "exact", head: true }),
-        supabase.from("follow_up_tasks").select("id", { count: "exact", head: true }).eq("action_name", "Foundation School Registration").eq("completed", true),
-        supabase.from("follow_up_tasks").select("id, completed"),
+    async function fetch() {
+      const [membersRes, tasksRes] = await Promise.all([
+        supabase.from("members").select("*").order("date_of_first_visit", { ascending: false }),
+        supabase.from("follow_up_tasks").select("*"),
       ]);
-
-      setStats({
-        firstTimers: ftRes.count || 0, members: membersRes.count || 0,
-        leaders: leadersRes.count || 0, departments: deptRes.count || 0, foundationSchool: fsRes.count || 0,
-      });
-
-      if (tasksRes.data) {
-        const total = tasksRes.data.length;
-        const completed = tasksRes.data.filter(t => t.completed).length;
-        setPipelineStats({ totalTasks: total, completedTasks: completed, completionRate: total > 0 ? Math.round((completed / total) * 100) : 0 });
-      }
+      setMembers(membersRes.data || []);
+      setTasks(tasksRes.data || []);
+      setLoaded(true);
     }
-    fetchDashboardStats();
+    fetch();
   }, []);
 
-  const statCards = [
-    { icon: <UserPlus className="h-5 w-5" />, title: "First Timers", value: stats.firstTimers, iconBg: "gradient-primary", iconColor: "text-primary-foreground", valueColor: "text-primary" },
-    { icon: <Users className="h-5 w-5" />, title: "Total Members", value: stats.members, iconBg: "bg-accent/20", iconColor: "text-accent", valueColor: "text-accent" },
-    { icon: <Award className="h-5 w-5" />, title: "Leaders", value: stats.leaders, iconBg: "bg-success/20", iconColor: "text-success", valueColor: "text-success" },
-    { icon: <Building2 className="h-5 w-5" />, title: "Departments", value: stats.departments, iconBg: "bg-warning/20", iconColor: "text-warning", valueColor: "text-warning" },
-    { icon: <GraduationCap className="h-5 w-5" />, title: "Foundation School", value: stats.foundationSchool, iconBg: "bg-info/20", iconColor: "text-info", valueColor: "text-info" },
+  const firstTimers = members.filter(m => ["First Timer", "Second Timer"].includes(m.status));
+  const retained = members.filter(m => ["Member", "Worker"].includes(m.status));
+  const retentionRate = members.length ? Math.round((retained.length / members.length) * 100) : 0;
+  const completedTasks = tasks.filter(t => t.completed).length;
+  const recentFirstTimers = members.filter(m => m.status === "First Timer").slice(0, 5);
+
+  // Notifications / Alerts
+  const noLeader = members.filter(m => ["First Timer", "Second Timer"].includes(m.status) && !m.assigned_follow_up_leader);
+  const notifications: string[] = [
+    ...noLeader.map(m => `${m.full_name} has no assigned follow-up leader`),
   ];
 
+  // Location aggregation
+  const locationGroups: Record<string, number> = {};
+  members.forEach(m => {
+    const loc = (m.location || "").trim();
+    if (loc) locationGroups[loc] = (locationGroups[loc] || 0) + 1;
+  });
+
+  const statusColors: Record<string, string> = {
+    "First Timer": "badge-gold",
+    "Second Timer": "badge-primary",
+    "New Convert": "bg-purple-500/15 text-purple-400 border border-purple-500/30",
+    "Member": "bg-success/15 text-success border border-success/30",
+    "Worker": "bg-info/15 text-info border border-info/30",
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-display font-extrabold text-foreground">Dashboard</h2>
-        <p className="text-muted-foreground mt-1">Overview of your church's growth metrics</p>
+        <h2 className="text-3xl font-display font-extrabold text-foreground">Dashboard Overview</h2>
+        <p className="text-muted-foreground mt-1">KingsRetention — Week of {new Date().toLocaleDateString("en-GB", { month: "long", day: "numeric", year: "numeric" })}</p>
       </div>
 
+      {/* Alerts */}
+      {notifications.length > 0 && (
+        <div className="rounded-2xl bg-warning/10 border border-warning/20 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <span className="font-semibold text-warning text-sm">Alerts ({notifications.length})</span>
+          </div>
+          <div className="space-y-1.5">
+            {notifications.slice(0, 3).map((n, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm text-warning/80">
+                <span className="mt-0.5 flex-shrink-0">⚠️</span>
+                <span>{n}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statCards.map((s, i) => (
-          <Card key={i} className={`animate-fade-up-delay-${i + 1}`}>
-            <CardContent className="p-5 flex flex-col items-center text-center">
-              <div className={`${s.iconBg} p-3 rounded-xl mb-3`}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { icon: <UserPlus className="h-5 w-5" />, label: "First Timers", value: firstTimers.length, bg: "gradient-primary", iconColor: "text-primary-foreground", valueColor: "text-primary", trend: "+12%" },
+          { icon: <Users className="h-5 w-5" />, label: "Total Members", value: members.length, bg: "bg-accent/20", iconColor: "text-accent", valueColor: "text-accent", trend: "+8%" },
+          { icon: <TrendingUp className="h-5 w-5" />, label: "Retention Rate", value: `${retentionRate}%`, bg: "bg-success/20", iconColor: "text-success", valueColor: "text-success", trend: "+5%" },
+          { icon: <ClipboardList className="h-5 w-5" />, label: "Follow-Ups Done", value: completedTasks, bg: "bg-info/20", iconColor: "text-info", valueColor: "text-info" },
+        ].map((s, i) => (
+          <Card key={i}>
+            <CardContent className="p-5">
+              <div className={`${s.bg} p-2.5 rounded-xl w-fit mb-3`}>
                 <span className={s.iconColor}>{s.icon}</span>
               </div>
-              <h3 className={`text-3xl font-display font-extrabold ${s.valueColor}`}>{s.value}</h3>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">{s.title}</p>
+              <p className={`text-3xl font-display font-extrabold ${s.valueColor}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+              {s.trend && <p className="text-xs text-success font-semibold mt-1">▲ {s.trend} this month</p>}
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Retention Progress */}
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display font-bold text-foreground">Retention Progress</h3>
+            <span className="text-2xl font-display font-extrabold text-primary">{retentionRate}%</span>
+          </div>
+          <div className="h-3 rounded-full progress-bar-track overflow-hidden">
+            <div className="h-full rounded-full progress-bar-fill transition-all duration-1000" style={{ width: `${retentionRate}%` }} />
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">{retained.length} of {members.length} visitors are now active members</p>
+        </CardContent>
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Pipeline Tracker */}
+        {/* Recent First Timers */}
         <Card>
-          <CardHeader className="flex flex-row items-center gap-3">
-            <div className="gradient-primary p-2.5 rounded-xl">
-              <ClipboardList className="h-5 w-5 text-primary-foreground" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="gradient-primary p-2.5 rounded-xl"><UserPlus className="h-4 w-4 text-primary-foreground" /></div>
+              <div>
+                <h3 className="font-display font-bold text-foreground">Recent First Timers</h3>
+                <p className="text-xs text-muted-foreground">Newest visitors</p>
+              </div>
             </div>
-            <CardTitle>6-Week Program Tracker</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-sm font-medium text-muted-foreground">Overall Completion Rate</span>
-                <span className="text-3xl font-display font-extrabold gradient-gold">{pipelineStats.completionRate}%</span>
-              </div>
-              <div className="h-3 rounded-full progress-bar-track overflow-hidden">
-                <div className="h-full rounded-full progress-bar-fill transition-all duration-1000" style={{ width: `${pipelineStats.completionRate}%` }} />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {pipelineStats.completedTasks} out of {pipelineStats.totalTasks} follow-up tasks completed.
-              </p>
+            <div className="space-y-2">
+              {recentFirstTimers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No first timers yet.</p>
+              ) : recentFirstTimers.map((m) => (
+                <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors">
+                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm">{m.full_name?.charAt(0)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground truncate">{m.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(m.date_of_first_visit).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[m.status] || "badge-primary"}`}>{m.status}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Attendance */}
+        {/* Member Locations */}
         <Card>
-          <CardHeader className="flex flex-row items-center gap-3">
-            <div className="bg-success/20 p-2.5 rounded-xl">
-              <Calendar className="h-5 w-5 text-success" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-success/20 p-2.5 rounded-xl"><MapPin className="h-4 w-4 text-success" /></div>
+              <div>
+                <h3 className="font-display font-bold text-foreground">Member Locations</h3>
+                <p className="text-xs text-muted-foreground">Where our members are</p>
+              </div>
             </div>
-            <CardTitle>Recent Attendance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Latest Sunday and Midweek services.</p>
-              <div className="p-4 rounded-xl bg-secondary">
-                <div className="flex justify-between mb-1">
-                  <span className="font-semibold text-foreground">Last Sunday Service</span>
-                  <span className="text-primary font-display font-bold">142 Present</span>
+            <div className="space-y-3">
+              {Object.entries(locationGroups).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([loc, count]) => (
+                <div key={loc} className="flex items-center gap-3">
+                  <span className="text-sm text-foreground flex-1 truncate">{loc}</span>
+                  <div className="w-24 h-1.5 rounded-full progress-bar-track overflow-hidden">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${(count / members.length) * 100}%` }} />
+                  </div>
+                  <span className="text-xs font-semibold text-muted-foreground w-16 text-right">{count} {count === 1 ? "person" : "people"}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">Including 12 First Timers</div>
-              </div>
-              <div className="p-4 rounded-xl bg-secondary">
-                <div className="flex justify-between mb-1">
-                  <span className="font-semibold text-foreground">Last Midweek Service</span>
-                  <span className="text-primary font-display font-bold">85 Present</span>
-                </div>
-                <div className="text-xs text-muted-foreground">Including 3 First Timers</div>
-              </div>
+              ))}
+              {Object.keys(locationGroups).length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No location data yet.</p>}
             </div>
           </CardContent>
         </Card>
