@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CheckCircle2, Circle, Search, Users, Calendar } from "lucide-react";
+import { CheckCircle2, Circle, Search, Users } from "lucide-react";
 
 export default function Attendance() {
   const [members, setMembers] = useState<any[]>([]);
@@ -14,9 +14,10 @@ export default function Attendance() {
   const [serviceType, setServiceType] = useState<"Sunday Service" | "Midweek Service" | "Special Program" | "Cell Meeting">("Sunday Service");
   const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [isSaving, setIsSaving] = useState(false);
+  const [serviceId, setServiceId] = useState<string | null>(null);
 
   useEffect(() => { fetchMembers(); }, []);
-  useEffect(() => { fetchAttendanceForDate(); }, [attendanceDate, serviceType]);
+  useEffect(() => { fetchOrCreateService(); }, [attendanceDate, serviceType]);
 
   const fetchMembers = async () => {
     const { data, error } = await supabase.from("members").select("id, full_name, phone_number, status, location").order("full_name");
@@ -24,11 +25,26 @@ export default function Attendance() {
     else setMembers(data || []);
   };
 
-  const fetchAttendanceForDate = async () => {
-    const { data } = await supabase.from("attendance").select("member_id").eq("date", attendanceDate).eq("service_type", serviceType);
-    const records: Record<string, boolean> = {};
-    data?.forEach(r => { records[r.member_id] = true; });
-    setAttendanceRecords(records);
+  const fetchOrCreateService = async () => {
+    // Try to find an existing service for this date and type
+    const { data: services } = await supabase
+      .from("services")
+      .select("id")
+      .eq("service_date", attendanceDate)
+      .eq("service_type", serviceType)
+      .limit(1);
+
+    if (services && services.length > 0) {
+      setServiceId(services[0].id);
+      // Fetch attendance for this service
+      const { data } = await supabase.from("attendance").select("member_id").eq("service_id", services[0].id);
+      const records: Record<string, boolean> = {};
+      data?.forEach(r => { if (r.member_id) records[r.member_id] = true; });
+      setAttendanceRecords(records);
+    } else {
+      setServiceId(null);
+      setAttendanceRecords({});
+    }
   };
 
   const toggleAttendance = (memberId: string) => {
@@ -37,15 +53,55 @@ export default function Attendance() {
 
   const saveAttendance = async () => {
     setIsSaving(true);
-    await supabase.from("attendance").delete().eq("date", attendanceDate).eq("service_type", serviceType);
-    const presentMemberIds = Object.keys(attendanceRecords).filter(id => attendanceRecords[id]);
-    if (presentMemberIds.length === 0) { toast.success("Attendance updated (0 present)"); setIsSaving(false); return; }
-    const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from("attendance").insert(presentMemberIds.map(id => ({
-      member_id: id, date: attendanceDate, service_type: serviceType, logged_by: userData.user?.id || null
-    })));
-    if (error) toast.error("Failed to save attendance");
-    else toast.success(`Recorded ${presentMemberIds.length} present members`);
+    try {
+      let currentServiceId = serviceId;
+
+      // Create service if it doesn't exist
+      if (!currentServiceId) {
+        const { data: orgData } = await supabase.from("organizations").select("id").limit(1).single();
+        const orgId = orgData?.id;
+        if (!orgId) { toast.error("No organization found"); setIsSaving(false); return; }
+
+        const validFrom = new Date(attendanceDate + "T06:00:00Z").toISOString();
+        const validUntil = new Date(attendanceDate + "T23:59:59Z").toISOString();
+
+        const { data: newService, error: svcErr } = await supabase.from("services").insert({
+          organization_id: orgId,
+          service_type: serviceType,
+          service_date: attendanceDate,
+          service_name: `${serviceType} - ${attendanceDate}`,
+          valid_from: validFrom,
+          valid_until: validUntil,
+        }).select("id").single();
+
+        if (svcErr || !newService) { toast.error("Failed to create service"); setIsSaving(false); return; }
+        currentServiceId = newService.id;
+        setServiceId(currentServiceId);
+      }
+
+      // Delete existing attendance for this service
+      await supabase.from("attendance").delete().eq("service_id", currentServiceId);
+
+      const presentMemberIds = Object.keys(attendanceRecords).filter(id => attendanceRecords[id]);
+      if (presentMemberIds.length === 0) {
+        toast.success("Attendance updated (0 present)");
+        setIsSaving(false);
+        return;
+      }
+
+      const { error } = await supabase.from("attendance").insert(
+        presentMemberIds.map(id => ({
+          member_id: id,
+          service_id: currentServiceId!,
+          scan_method: "manual",
+        }))
+      );
+
+      if (error) toast.error("Failed to save attendance");
+      else toast.success(`Recorded ${presentMemberIds.length} present members`);
+    } catch {
+      toast.error("An error occurred");
+    }
     setIsSaving(false);
   };
 
