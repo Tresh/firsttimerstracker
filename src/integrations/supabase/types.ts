@@ -1310,40 +1310,116 @@ export type Database = {
           },
         ]
       }
+      service_attendance: {
+        Row: {
+          id: string
+          is_first_timer: boolean | null
+          is_manual_override: boolean | null
+          member_id: string | null
+          scan_method: string | null
+          scanned_at: string | null
+          scanned_by: string | null
+          service_id: string | null
+        }
+        Insert: {
+          id?: string
+          is_first_timer?: boolean | null
+          is_manual_override?: boolean | null
+          member_id?: string | null
+          scan_method?: string | null
+          scanned_at?: string | null
+          scanned_by?: string | null
+          service_id?: string | null
+        }
+        Update: {
+          id?: string
+          is_first_timer?: boolean | null
+          is_manual_override?: boolean | null
+          member_id?: string | null
+          scan_method?: string | null
+          scanned_at?: string | null
+          scanned_by?: string | null
+          service_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_attendance_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_attendance_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
+          actual_attendance: number | null
           created_at: string | null
           created_by: string | null
+          expected_attendance: number | null
           id: string
           organization_id: string
+          qr_active: boolean | null
+          qr_closed_at: string | null
           qr_code: string
+          qr_opened_at: string | null
           service_date: string
           service_name: string | null
+          service_time: string | null
           service_type: string
+          title: string | null
           valid_from: string
           valid_until: string
         }
         Insert: {
+          actual_attendance?: number | null
           created_at?: string | null
           created_by?: string | null
+          expected_attendance?: number | null
           id?: string
           organization_id: string
+          qr_active?: boolean | null
+          qr_closed_at?: string | null
           qr_code?: string
+          qr_opened_at?: string | null
           service_date: string
           service_name?: string | null
+          service_time?: string | null
           service_type?: string
+          title?: string | null
           valid_from: string
           valid_until: string
         }
         Update: {
+          actual_attendance?: number | null
           created_at?: string | null
           created_by?: string | null
+          expected_attendance?: number | null
           id?: string
           organization_id?: string
+          qr_active?: boolean | null
+          qr_closed_at?: string | null
           qr_code?: string
+          qr_opened_at?: string | null
           service_date?: string
           service_name?: string | null
+          service_time?: string | null
           service_type?: string
+          title?: string | null
           valid_from?: string
           valid_until?: string
         }
