@@ -27,6 +27,7 @@ import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
 import AdminUsers from "./pages/AdminUsers";
 import ChangePassword from "./pages/ChangePassword";
+import CallCenter from "./pages/CallCenter";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,11 @@ const App = () => (
                 <Route path="/foundation-school" element={
                   <RoleGuard allowedRoles={[...ADMIN_PASTOR, "foundation_school_staff", "foundation_school_leader"]}>
                     <FoundationSchool />
+                  </RoleGuard>
+                } />
+                <Route path="/call-center" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "follow_up_team", "cell_leader"]}>
+                    <CallCenter />
                   </RoleGuard>
                 } />
                 <Route path="/attendance" element={
