@@ -9,6 +9,7 @@ export type UserProfile = {
   phone_number: string | null;
   organization_id: string | null;
   role_title: string | null;
+  must_change_password: boolean;
 };
 
 export type AppRole =
