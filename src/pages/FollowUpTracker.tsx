@@ -251,10 +251,151 @@ function CellLeaderView() {
       }]);
     }
 
+    // Anti-gaming: check if 5+ tasks done in last 3 minutes
+    await checkBulkCompletion();
+
     toast.success("Task marked as done — waiting for verification");
     setTaskDialog(null);
     setTaskNote("");
     fetchData();
+  };
+
+  // Photo proof for house visits
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [proofMode, setProofMode] = useState<"choose" | "photo" | "gps" | "manual" | null>(null);
+  const [manualOverrideReason, setManualOverrideReason] = useState("");
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  const handleVisitPhotoProof = async (task: any, file: File) => {
+    if (!profile?.id) return;
+    setUploadingProof(true);
+    try {
+      const path = `visits/${task.id}/${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage.from("task-proofs").upload(path, file);
+      if (uploadErr) { toast.error("Upload failed: " + uploadErr.message); setUploadingProof(false); return; }
+      const { data: urlData } = supabase.storage.from("task-proofs").getPublicUrl(path);
+      const photoUrl = urlData.publicUrl;
+
+      // Get GPS
+      let lat: number | null = null, lng: number | null = null, acc: number | null = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
+        lat = pos.coords.latitude; lng = pos.coords.longitude; acc = pos.coords.accuracy;
+      } catch { /* GPS unavailable */ }
+
+      // Insert proof
+      const { data: proof } = await supabase.from("task_proof").insert([{
+        task_id: task.id,
+        uploaded_by: profile.id,
+        proof_type: "photo",
+        photo_url: photoUrl,
+        latitude: lat,
+        longitude: lng,
+        gps_accuracy: acc,
+      }]).select("id").single();
+
+      // Update task
+      await supabase.from("follow_up_tasks").update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+        completed_by: profile.id,
+        proof_id: proof?.id,
+        notes: taskNote || null,
+      }).eq("id", task.id);
+
+      await checkBulkCompletion();
+      toast.success("✅ Visit logged with photo proof!");
+      setTaskDialog(null); setTaskNote(""); setProofMode(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Error");
+    }
+    setUploadingProof(false);
+  };
+
+  const handleVisitGPSOnly = async (task: any) => {
+    if (!profile?.id) return;
+    setUploadingProof(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 }));
+      const { data: proof } = await supabase.from("task_proof").insert([{
+        task_id: task.id,
+        uploaded_by: profile.id,
+        proof_type: "gps",
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        gps_accuracy: pos.coords.accuracy,
+      }]).select("id").single();
+
+      await supabase.from("follow_up_tasks").update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+        completed_by: profile.id,
+        proof_id: proof?.id,
+        notes: taskNote || null,
+      }).eq("id", task.id);
+
+      await checkBulkCompletion();
+      toast.success("✅ Visit logged with GPS!");
+      setTaskDialog(null); setTaskNote(""); setProofMode(null);
+      fetchData();
+    } catch {
+      toast.error("Could not get GPS location");
+    }
+    setUploadingProof(false);
+  };
+
+  const handleVisitManual = async (task: any) => {
+    if (!profile?.id || !manualOverrideReason.trim()) return;
+    setUploadingProof(true);
+
+    const { data: proof } = await supabase.from("task_proof").insert([{
+      task_id: task.id,
+      uploaded_by: profile.id,
+      proof_type: "manual",
+      is_manual_override: true,
+      override_reason: manualOverrideReason,
+    }]).select("id").single();
+
+    await supabase.from("follow_up_tasks").update({
+      status: "done",
+      completed_at: new Date().toISOString(),
+      completed_by: profile.id,
+      is_manual_override: true,
+      override_reason: manualOverrideReason,
+      proof_id: proof?.id,
+      notes: taskNote || null,
+    }).eq("id", task.id);
+
+    // Flag it
+    const member = members.find(m => m.id === task.member_id);
+    await supabase.from("activity_flags").insert([{
+      flagged_user_id: profile.id,
+      flag_type: "no_proof",
+      description: `${profile.full_name} marked house visit for ${member?.full_name || "unknown"} without proof`,
+      severity: "medium",
+    }]);
+
+    await checkBulkCompletion();
+    toast.success("Visit marked (no proof — flagged for review)");
+    setTaskDialog(null); setTaskNote(""); setProofMode(null); setManualOverrideReason("");
+    fetchData();
+    setUploadingProof(false);
+  };
+
+  const checkBulkCompletion = async () => {
+    if (!profile?.id) return;
+    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const { count } = await supabase.from("follow_up_tasks").select("id", { count: "exact" })
+      .eq("completed_by", profile.id).gte("completed_at", threeMinAgo);
+    if ((count || 0) >= 5) {
+      await supabase.from("activity_flags").insert([{
+        flagged_user_id: profile.id,
+        flag_type: "too_fast",
+        description: `${profile.full_name} completed ${count} tasks in under 3 minutes`,
+        severity: "high",
+      }]);
+    }
   };
 
   const statusDot = (s: "overdue" | "due_today" | "on_track") =>
