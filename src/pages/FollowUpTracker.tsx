@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -175,9 +176,13 @@ function CellLeaderView() {
               return (
                 <Card key={m.id} className="overflow-hidden">
                   <CardContent className="p-0">
-                    <button
-                      className="w-full p-4 flex items-center gap-4 text-left"
+                    {/* Tappable header area */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="w-full p-4 flex items-center gap-4 text-left cursor-pointer active:bg-secondary/50 transition-colors select-none"
                       onClick={() => setExpandedMember(expanded ? null : m.id)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpandedMember(expanded ? null : m.id); }}
                     >
                       <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
                         {m.full_name?.charAt(0)}
@@ -193,16 +198,28 @@ function CellLeaderView() {
                       </div>
                       <div className="flex flex-col items-center gap-1 shrink-0">
                         <span className="text-xl">{statusDot(status)}</span>
-                        {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
                       </div>
-                    </button>
+                    </div>
 
-                    {/* Action buttons */}
+                    {/* Action buttons - stopPropagation to prevent expand toggle */}
                     <div className="flex gap-2 px-4 pb-3">
-                      <a href={`tel:${m.phone_number}`} className="flex-1 flex items-center justify-center gap-2 bg-success/15 text-success rounded-xl py-3 text-base font-bold hover:bg-success/25 transition-colors">
+                      <a
+                        href={`tel:${m.phone_number}`}
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        className="flex-1 flex items-center justify-center gap-2 bg-success/15 text-success rounded-xl py-3 text-base font-bold hover:bg-success/25 active:bg-success/30 transition-colors"
+                      >
                         <Phone className="h-5 w-5" /> 📞 CALL
                       </a>
-                      <a href={`https://wa.me/${(m.phone_number || "").replace(/^0/, "234")}`} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-primary/15 text-primary rounded-xl py-3 text-base font-bold hover:bg-primary/25 transition-colors">
+                      <a
+                        href={`https://wa.me/${(m.phone_number || "").replace(/^0/, "234")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        className="flex-1 flex items-center justify-center gap-2 bg-primary/15 text-primary rounded-xl py-3 text-base font-bold hover:bg-primary/25 active:bg-primary/30 transition-colors"
+                      >
                         <MessageCircle className="h-5 w-5" /> 💬 WHATSAPP
                       </a>
                     </div>
@@ -216,15 +233,16 @@ function CellLeaderView() {
                         ) : weekTasks.map(task => (
                           <button
                             key={task.id}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors text-left"
-                            onClick={() => {
+                            className="w-full flex items-center gap-3 min-h-[56px] p-3 rounded-xl bg-secondary/50 hover:bg-secondary active:bg-secondary/80 transition-colors text-left"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (task.status === "pending") setTaskDialog(task);
                             }}
                             disabled={task.status === "verified" || task.status === "done"}
                           >
-                            <span className="text-xl shrink-0">{task.task_emoji || "📋"}</span>
+                            <span className="text-2xl shrink-0 leading-none">{task.task_emoji || "📋"}</span>
                             <span className="flex-1 text-base text-foreground">{task.task_name}</span>
-                            <span className="text-lg shrink-0">{taskStatusIcon(task.status, task.due_date)}</span>
+                            <span className="text-xl shrink-0">{taskStatusIcon(task.status, task.due_date)}</span>
                           </button>
                         ))}
                         {weekTasks.some(t => t.status === "done") && (
@@ -320,14 +338,14 @@ function CellLeaderView() {
         )}
       </div>
 
-      {/* Task completion dialog */}
-      <Dialog open={!!taskDialog} onOpenChange={(open) => { if (!open) { setTaskDialog(null); setTaskNote(""); } }}>
-        <DialogContent className="bg-card border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-display flex items-center gap-2">
+      {/* Task completion bottom sheet */}
+      <Drawer open={!!taskDialog} onOpenChange={(open) => { if (!open) { setTaskDialog(null); setTaskNote(""); } }}>
+        <DrawerContent className="bg-card border-border px-4 pb-8">
+          <DrawerHeader className="px-0">
+            <DrawerTitle className="text-lg font-display flex items-center gap-2">
               <span className="text-2xl">{taskDialog?.task_emoji}</span> {taskDialog?.task_name}
-            </DialogTitle>
-          </DialogHeader>
+            </DrawerTitle>
+          </DrawerHeader>
           <div className="space-y-4 mt-2">
             {taskDialog?.task_category === "call" ? (
               <div className="space-y-3">
@@ -362,8 +380,8 @@ function CellLeaderView() {
             )}
             <Textarea placeholder="Optional note..." value={taskNote} onChange={e => setTaskNote(e.target.value)} className={taskDialog?.task_category === "visit" ? "hidden" : ""} />
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
       {/* Bottom tab bar */}
       <div className="fixed bottom-0 left-0 right-0 glass-navbar z-40 flex justify-around py-2 px-2 safe-area-bottom">
