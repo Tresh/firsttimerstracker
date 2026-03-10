@@ -36,6 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/attend" element={<AttendanceScan />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/welcome-desk" element={<WelcomeDesk />} />
               <Route element={<Layout />}>
