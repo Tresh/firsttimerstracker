@@ -129,7 +129,7 @@ export default function LandingPage() {
           <div className="text-center max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full badge-primary text-sm font-medium mb-8 animate-fade-up">
               <Shield className="h-4 w-4" />
-              Church Retention & Follow-Up Platform
+              The Race For The Last Man
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-extrabold text-foreground leading-tight mb-6 animate-fade-up-delay-1">
               Track Every Soul.{" "}
