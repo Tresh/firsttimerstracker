@@ -417,7 +417,36 @@ export default function AdminUsers() {
     }
   }
 
-  if (pageLoading) {
+  async function handleAssignTestMembers() {
+    setAssignTestLoading(true);
+    try {
+      // Find Test Cell Leader profile
+      const { data: profile, error: profileErr } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("full_name", "Test Cell Leader")
+        .single();
+      if (profileErr || !profile) throw new Error("Test Cell Leader profile not found. Create test accounts first.");
+
+      // Update all First Timers
+      const { data: updated, error: updateErr } = await supabase
+        .from("members")
+        .update({ assigned_follow_up_leader: profile.id })
+        .eq("status", "First Timer")
+        .select("id");
+      if (updateErr) throw new Error(updateErr.message);
+
+      const count = updated?.length ?? 0;
+      toast({ title: `✅ ${count} first timers assigned to Test Cell Leader!` });
+      setAssignTestOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setAssignTestLoading(false);
+    }
+  }
+
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
