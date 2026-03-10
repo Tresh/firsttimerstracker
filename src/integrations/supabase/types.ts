@@ -14,6 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_flags: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          flag_type: string
+          flagged_user_id: string | null
+          id: string
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          flag_type: string
+          flagged_user_id?: string | null
+          id?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          flag_type?: string
+          flagged_user_id?: string | null
+          id?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_flags_flagged_user_id_fkey"
+            columns: ["flagged_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_flags_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_log: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          flag_reason: string | null
+          id: string
+          is_flagged: boolean | null
+          metadata: Json | null
+          reference_id: string | null
+          reference_table: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          flag_reason?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          metadata?: Json | null
+          reference_id?: string | null
+          reference_table?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          flag_reason?: string | null
+          id?: string
+          is_flagged?: boolean | null
+          metadata?: Json | null
+          reference_id?: string | null
+          reference_table?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           created_at: string | null
@@ -567,9 +662,13 @@ export type Database = {
           created_at: string | null
           due_date: string | null
           id: string
+          is_manual_override: boolean | null
           is_urgent: boolean | null
           member_id: string
           notes: string | null
+          override_reason: string | null
+          proof_id: string | null
+          proof_required: boolean | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_note: string | null
@@ -597,9 +696,13 @@ export type Database = {
           created_at?: string | null
           due_date?: string | null
           id?: string
+          is_manual_override?: boolean | null
           is_urgent?: boolean | null
           member_id: string
           notes?: string | null
+          override_reason?: string | null
+          proof_id?: string | null
+          proof_required?: boolean | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_note?: string | null
@@ -627,9 +730,13 @@ export type Database = {
           created_at?: string | null
           due_date?: string | null
           id?: string
+          is_manual_override?: boolean | null
           is_urgent?: boolean | null
           member_id?: string
           notes?: string | null
+          override_reason?: string | null
+          proof_id?: string | null
+          proof_required?: boolean | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_note?: string | null
@@ -667,6 +774,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "follow_up_tasks_proof_id_fkey"
+            columns: ["proof_id"]
+            isOneToOne: false
+            referencedRelation: "task_proof"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "follow_up_tasks_rejected_by_fkey"
             columns: ["rejected_by"]
             isOneToOne: false
@@ -687,28 +801,37 @@ export type Database = {
           attended: boolean | null
           class_id: string | null
           id: string
+          is_manual_override: boolean | null
           marked_at: string | null
           marked_by: string | null
           member_id: string | null
           notes: string | null
+          qr_session_id: string | null
+          scan_verified: boolean | null
         }
         Insert: {
           attended?: boolean | null
           class_id?: string | null
           id?: string
+          is_manual_override?: boolean | null
           marked_at?: string | null
           marked_by?: string | null
           member_id?: string | null
           notes?: string | null
+          qr_session_id?: string | null
+          scan_verified?: boolean | null
         }
         Update: {
           attended?: boolean | null
           class_id?: string | null
           id?: string
+          is_manual_override?: boolean | null
           marked_at?: string | null
           marked_by?: string | null
           member_id?: string | null
           notes?: string | null
+          qr_session_id?: string | null
+          scan_verified?: boolean | null
         }
         Relationships: [
           {
@@ -730,6 +853,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_school_attendance_qr_session_id_fkey"
+            columns: ["qr_session_id"]
+            isOneToOne: false
+            referencedRelation: "fs_qr_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -784,6 +914,109 @@ export type Database = {
           },
           {
             foreignKeyName: "foundation_school_classes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fs_qr_scans: {
+        Row: {
+          id: string
+          ip_address: string | null
+          member_id: string | null
+          scanned_at: string | null
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          ip_address?: string | null
+          member_id?: string | null
+          scanned_at?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          ip_address?: string | null
+          member_id?: string | null
+          scanned_at?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fs_qr_scans_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fs_qr_scans_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "fs_qr_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fs_qr_sessions: {
+        Row: {
+          class_id: string | null
+          closed_at: string | null
+          created_at: string | null
+          generated_by: string | null
+          id: string
+          is_active: boolean | null
+          opened_at: string | null
+          organization_id: string | null
+          qr_code: string
+          scan_count: number | null
+        }
+        Insert: {
+          class_id?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          generated_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          opened_at?: string | null
+          organization_id?: string | null
+          qr_code: string
+          scan_count?: number | null
+        }
+        Update: {
+          class_id?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          generated_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          opened_at?: string | null
+          organization_id?: string | null
+          qr_code?: string
+          scan_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fs_qr_sessions_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "foundation_school_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fs_qr_sessions_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fs_qr_sessions_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1127,6 +1360,66 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_proof: {
+        Row: {
+          created_at: string | null
+          gps_accuracy: number | null
+          id: string
+          is_manual_override: boolean | null
+          latitude: number | null
+          longitude: number | null
+          override_reason: string | null
+          photo_url: string | null
+          proof_type: string | null
+          task_id: string | null
+          timestamp_taken: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          gps_accuracy?: number | null
+          id?: string
+          is_manual_override?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          override_reason?: string | null
+          photo_url?: string | null
+          proof_type?: string | null
+          task_id?: string | null
+          timestamp_taken?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          gps_accuracy?: number | null
+          id?: string
+          is_manual_override?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          override_reason?: string | null
+          photo_url?: string | null
+          proof_type?: string | null
+          task_id?: string | null
+          timestamp_taken?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_proof_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "follow_up_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_proof_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
