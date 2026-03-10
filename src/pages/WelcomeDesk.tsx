@@ -66,7 +66,7 @@ export default function WelcomeDesk() {
     if (existing && existing.length > 0) { toast.error("This phone number is already in the system."); setSubmitting(false); return; }
 
     const { error } = await supabase.from("members").insert([{
-      prefix: prefix || null,
+      prefix: (prefix || null) as any,
       full_name: fullName.trim(),
       phone_number: phone.trim(),
       gender: gender || null,

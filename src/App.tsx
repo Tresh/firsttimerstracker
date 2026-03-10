@@ -36,6 +36,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route element={<ProtectedRoute />}>
+              <Route path="/welcome-desk" element={<WelcomeDesk />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/first-timers" element={<FirstTimers />} />
