@@ -172,6 +172,52 @@ function KingAdminDashboard() {
         <StatCard icon={<Award className="h-5 w-5" />} label="Active Cell Leaders" value={cellLeaderCount} bg="bg-info/20" iconColor="text-info" valueColor="text-info" />
       </div>
 
+      {/* ⚠️ Activity Alerts */}
+      {activityFlags.length > 0 && (
+        <Card className="border-warning/30">
+          <CardContent className="p-5 space-y-3">
+            <h3 className="font-display font-bold text-foreground flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              ⚠️ Activity Alerts
+              <Badge variant="secondary" className="ml-2">{activityFlags.length}</Badge>
+            </h3>
+            {activityFlags.map((flag: any) => {
+              const flagLabels: Record<string, string> = {
+                too_fast: "Tasks completed suspiciously fast",
+                outside_hours: "Activity outside normal hours",
+                bulk_marking: "Bulk attendance marking detected",
+                no_proof: "House visit marked without proof",
+                manual_override: "Manual attendance override",
+                expired_qr: "Expired QR code used",
+              };
+              const severityBadge = flag.severity === "high"
+                ? <Badge className="bg-destructive/15 text-destructive border-destructive/30">🔴 High</Badge>
+                : flag.severity === "medium"
+                ? <Badge className="bg-warning/15 text-warning border-warning/30">🟡 Medium</Badge>
+                : <Badge className="bg-info/15 text-info border-info/30">🔵 Low</Badge>;
+              return (
+                <div key={flag.id} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/30">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {severityBadge}
+                      <span className="text-sm font-semibold text-foreground">{flagLabels[flag.flag_type] || flag.flag_type}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{flag.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {(flag.profiles as any)?.full_name || "Unknown"} · {flag.created_at ? new Date(flag.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => dismissFlag(flag.id)}>Dismiss</Button>
+                    <Button size="sm" variant="outline" onClick={() => navigate("/admin/users")}>Investigate</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Group Comparison */}
       <div className="grid md:grid-cols-3 gap-4">
         {groupStats.map(g => (
