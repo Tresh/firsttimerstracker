@@ -256,17 +256,17 @@ export default function FirstTimers() {
                     {(isKingAdmin || isGroupAdmin) ? (
                       <>
                         <div className="space-y-2">
-                          <Label>Group</Label>
-                          <Select value={selectedGroupId} onValueChange={v => { setSelectedGroupId(v); setFormData({ ...formData, organization_id: "" }); }}>
-                            <SelectTrigger className="h-11"><SelectValue placeholder="Select group" /></SelectTrigger>
-                            <SelectContent>{groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
+                          <Label>Church / Assembly</Label>
+                          <Select value={formData.organization_id} onValueChange={v => setFormData({ ...formData, organization_id: v })}>
+                            <SelectTrigger className="h-11"><SelectValue placeholder="Select church" /></SelectTrigger>
+                            <SelectContent>{churches.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Church / Assembly</Label>
-                          <Select value={formData.organization_id} onValueChange={v => setFormData({ ...formData, organization_id: v })} disabled={!selectedGroupId}>
-                            <SelectTrigger className="h-11"><SelectValue placeholder={selectedGroupId ? "Select church" : "Select group first"} /></SelectTrigger>
-                            <SelectContent>{churches.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                          <Label>Group (optional filter)</Label>
+                          <Select value={selectedGroupId} onValueChange={v => { setSelectedGroupId(v); setFormData({ ...formData, organization_id: "" }); }}>
+                            <SelectTrigger className="h-11"><SelectValue placeholder="All groups" /></SelectTrigger>
+                            <SelectContent>{groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                       </>
