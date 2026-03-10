@@ -33,9 +33,15 @@ export default function Auth() {
         if (error) throw error;
         toast.success("Account created! Check your email to verify your account.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const redirect = searchParams.get("redirect") || "/dashboard";
+        // Check role for redirect
+        const userId = signInData.user?.id;
+        let redirect = searchParams.get("redirect") || "/dashboard";
+        if (userId) {
+          const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", userId).single();
+          if (roleData?.role === "reception_team") redirect = "/welcome-desk";
+        }
         navigate(redirect);
       }
     } catch (error: any) {
