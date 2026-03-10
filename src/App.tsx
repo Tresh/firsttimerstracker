@@ -79,6 +79,11 @@ const App = () => (
                     <FoundationSchool />
                   </RoleGuard>
                 } />
+                <Route path="/call-center" element={
+                  <RoleGuard allowedRoles={[...ADMIN_PASTOR, "follow_up_team", "cell_leader"]}>
+                    <CallCenter />
+                  </RoleGuard>
+                } />
                 <Route path="/attendance" element={
                   <RoleGuard allowedRoles={[...ADMIN_PASTOR, "cell_leader"]}>
                     <Attendance />
