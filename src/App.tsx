@@ -47,6 +47,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/attend" element={<AttendanceScan />} />
+            <Route path="/fs-scan" element={<FSScan />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/welcome-desk" element={

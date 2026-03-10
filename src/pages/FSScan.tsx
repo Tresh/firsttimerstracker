@@ -91,10 +91,12 @@ export default function FSScan() {
       marked_at: new Date().toISOString(),
     }, { onConflict: "class_id,member_id" });
 
-    // Increment scan count
-    await supabase.rpc("increment_scan_count" as any, { session_id_param: sessionInfo.id }).catch(() => {
-      // fallback: just ignore if rpc doesn't exist
-    });
+    // Increment scan count (best effort)
+    try {
+      await supabase.from("fs_qr_sessions").update({
+        scan_count: (await supabase.from("fs_qr_scans").select("id", { count: "exact" }).eq("session_id", sessionInfo.id)).count || 0,
+      }).eq("id", sessionInfo.id);
+    } catch { /* ignore */ }
 
     setMemberName([member.prefix, member.full_name].filter(Boolean).join(" "));
     setState("success");
