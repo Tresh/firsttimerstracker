@@ -72,6 +72,15 @@ const deptHeadNav: NavItem[] = [
   { title: "Attendance", url: "/attendance", icon: Calendar },
 ];
 
+const fsStaffNav: NavItem[] = [
+  { title: "Foundation School", url: "/foundation-school", icon: GraduationCap },
+];
+
+const fsLeaderNav: NavItem[] = [
+  { title: "Foundation School", url: "/foundation-school", icon: GraduationCap },
+  { title: "Members", url: "/members", icon: Users },
+];
+
 function getNavItems(role: AppRole | null): NavItem[] {
   if (!role) return adminNav;
   if (role === "king_admin" || role === "admin") return adminNav;
@@ -80,6 +89,8 @@ function getNavItems(role: AppRole | null): NavItem[] {
   if (role === "reception_team") return receptionNav;
   if (role === "cell_leader" || role === "follow_up_team") return cellLeaderNav;
   if (role === "department_head") return deptHeadNav;
+  if (role === "foundation_school_staff") return fsStaffNav;
+  if (role === "foundation_school_leader") return fsLeaderNav;
   return adminNav;
 }
 
