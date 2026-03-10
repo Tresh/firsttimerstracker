@@ -27,6 +27,7 @@ import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
 import AdminUsers from "./pages/AdminUsers";
 import ChangePassword from "./pages/ChangePassword";
+import CallCenter from "./pages/CallCenter";
 
 const queryClient = new QueryClient();
 
