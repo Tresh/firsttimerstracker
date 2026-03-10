@@ -54,7 +54,11 @@ export default function FirstTimers() {
 
   // Org dropdowns for admins
   const [groups, setGroups] = useState<any[]>([]);
+  const [allChurches, setAllChurches] = useState<any[]>([]);
   const [churches, setChurches] = useState<any[]>([]);
+  
+  // Church filter for page view
+  const [filterChurchId, setFilterChurchId] = useState<string>("all");
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   // Invited-by search
