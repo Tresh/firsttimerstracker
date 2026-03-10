@@ -757,6 +757,28 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── Assign Test Members Dialog ─── */}
+      <AlertDialog open={assignTestOpen} onOpenChange={setAssignTestOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" /> Assign Test Members
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will assign all existing first timers to the <strong>Test Cell Leader</strong> account so you can test the cell leader experience. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={assignTestLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAssignTestMembers} disabled={assignTestLoading}>
+              {assignTestLoading ? "Assigning..." : "Assign First Timers"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
   );
 }
