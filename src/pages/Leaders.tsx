@@ -12,7 +12,7 @@ export default function Leaders() {
         supabase.from("profiles").select("id, full_name, user_id"),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("members").select("assigned_follow_up_leader").not("assigned_follow_up_leader", "is", null),
-        supabase.from("follow_up_tasks").select("assigned_to, completed"),
+        supabase.from("follow_up_tasks").select("assigned_to, status"),
       ]);
 
       const profiles = profilesRes.data || [];
