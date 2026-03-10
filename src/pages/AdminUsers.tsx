@@ -348,11 +348,6 @@ export default function AdminUsers() {
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             {showGroup && (
