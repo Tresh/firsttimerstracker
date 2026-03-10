@@ -6,14 +6,101 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Phone, MessageCircle, CheckCircle2, Clock, AlertTriangle,
-  Users, ClipboardCheck, Bell, ChevronDown, ChevronUp, XCircle,
+  Users, ClipboardCheck, Bell, ChevronDown, XCircle,
   Shield, BarChart3, X
 } from "lucide-react";
-import { formatDistanceToNow, format, startOfWeek, isToday, isBefore } from "date-fns";
+import { formatDistanceToNow, format, startOfWeek, isToday, isYesterday, isBefore } from "date-fns";
+
+// ─── CALL OUTCOME BANNER (shared) ──────────────────────────────────────────
+
+type CallBannerState = {
+  callLogId: string;
+  memberId: string;
+  memberName: string;
+} | null;
+
+function CallOutcomeBanner({
+  banner,
+  onDismiss,
+  onOutcome,
+}: {
+  banner: CallBannerState;
+  onDismiss: () => void;
+  onOutcome: (outcome: string) => void;
+}) {
+  if (!banner) return null;
+  return (
+    <div className="fixed bottom-16 left-0 right-0 z-50 px-3 pb-2 safe-area-bottom">
+      <div className="glass-card rounded-2xl p-4 border border-primary/30 shadow-lg space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-foreground">📞 How did the call with {banner.memberName} go?</p>
+          <button onClick={onDismiss} className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onOutcome("answered")}
+            className="flex-1 h-12 rounded-xl bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))] font-bold text-sm flex items-center justify-center gap-1 active:opacity-70"
+          >
+            ✅ Answered
+          </button>
+          <button
+            onClick={() => onOutcome("no_answer")}
+            className="flex-1 h-12 rounded-xl bg-warning/20 text-warning font-bold text-sm flex items-center justify-center gap-1 active:opacity-70"
+          >
+            📵 No Answer
+          </button>
+          <button
+            onClick={() => onOutcome("will_retry")}
+            className="flex-1 h-12 rounded-xl bg-secondary text-muted-foreground font-bold text-sm flex items-center justify-center gap-1 active:opacity-70"
+          >
+            🔄 Retry
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── HELPER: format call time ─────────────────────────────────────────────
+
+function formatCallTime(ts: string) {
+  const d = new Date(ts);
+  if (isToday(d)) return `Today ${format(d, "h:mm a")}`;
+  if (isYesterday(d)) return `Yesterday ${format(d, "h:mm a")}`;
+  return format(d, "MMM d, h:mm a");
+}
+
+function outcomeBadge(outcome: string | null) {
+  if (!outcome) return <Badge className="bg-primary/20 text-primary border-0 text-xs">⏳ Pending</Badge>;
+  if (outcome === "answered") return <Badge className="bg-[hsl(var(--success)/0.2)] text-[hsl(var(--success))] border-0 text-xs">✅ Answered</Badge>;
+  if (outcome === "no_answer") return <Badge className="bg-warning/20 text-warning border-0 text-xs">📵 No Answer</Badge>;
+  return <Badge className="bg-secondary text-muted-foreground border-0 text-xs">🔄 Will Retry</Badge>;
+}
+
+// ─── HELPER: group calls by date ──────────────────────────────────────────
+
+function groupCallsByDate(logs: any[]) {
+  const groups: { label: string; calls: any[] }[] = [];
+  const map = new Map<string, any[]>();
+  for (const log of logs) {
+    const d = new Date(log.call_timestamp);
+    let label: string;
+    if (isToday(d)) label = "Today";
+    else if (isYesterday(d)) label = "Yesterday";
+    else label = format(d, "EEEE, MMM d");
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(log);
+  }
+  map.forEach((calls, label) => groups.push({ label, calls }));
+  return groups;
+}
 
 // ─── CELL LEADER VIEW ───────────────────────────────────────────────────────
 
@@ -28,13 +115,14 @@ function CellLeaderView() {
   const [activeTab, setActiveTab] = useState<"members" | "tasks" | "calls" | "notifications">("members");
   const [taskDialog, setTaskDialog] = useState<any>(null);
   const [taskNote, setTaskNote] = useState("");
+  const [callBanner, setCallBanner] = useState<CallBannerState>(null);
 
   const fetchData = useCallback(async () => {
     if (!profile?.id) return;
     const [membersRes, tasksRes, callsRes, notifsRes] = await Promise.all([
       supabase.from("members").select("*").eq("assigned_follow_up_leader", profile.id).in("status", ["First Timer", "Second Timer", "New Convert"]).order("date_of_first_visit", { ascending: false }),
       supabase.from("follow_up_tasks").select("*").in("member_id", (await supabase.from("members").select("id").eq("assigned_follow_up_leader", profile.id)).data?.map((m: any) => m.id) || []),
-      supabase.from("call_logs").select("*, members(full_name)").eq("caller_id", profile.id).order("call_timestamp", { ascending: false }).limit(50),
+      supabase.from("call_logs").select("*, members(full_name, phone_number)").eq("caller_id", profile.id).order("call_timestamp", { ascending: false }).limit(100),
       supabase.from("notifications").select("*").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(20),
     ]);
     setMembers(membersRes.data || []);
@@ -47,6 +135,7 @@ function CellLeaderView() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
@@ -60,23 +149,78 @@ function CellLeaderView() {
 
   const getStatus = (memberId: string): "overdue" | "due_today" | "on_track" => {
     const memberTasks = getMemberTasks(memberId);
-    const hasOverdue = memberTasks.some(t => t.status === "pending" && t.due_date && isBefore(new Date(t.due_date), now));
-    if (hasOverdue) return "overdue";
-    const hasDueToday = memberTasks.some(t => t.status === "pending" && t.due_date && isToday(new Date(t.due_date)));
-    if (hasDueToday) return "due_today";
+    if (memberTasks.some(t => t.status === "pending" && t.due_date && isBefore(new Date(t.due_date), now))) return "overdue";
+    if (memberTasks.some(t => t.status === "pending" && t.due_date && isToday(new Date(t.due_date)))) return "due_today";
     return "on_track";
   };
 
   const getUrgentTask = (memberId: string) => {
-    const memberTasks = getMemberTasks(memberId).filter(t => t.status === "pending").sort((a, b) => {
+    return getMemberTasks(memberId).filter(t => t.status === "pending").sort((a: any, b: any) => {
       if (!a.due_date) return 1;
       if (!b.due_date) return -1;
       return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-    });
-    return memberTasks[0];
+    })[0];
   };
 
   const urgentCount = members.filter(m => getStatus(m.id) !== "on_track").length;
+
+  // ── CALL button handler: log + dial + show banner ──
+  const handleCallButton = async (member: any) => {
+    if (!profile?.id || !member.phone_number) {
+      toast.error("No phone number available");
+      return;
+    }
+    // 1. Log call attempt
+    const { data: logRow } = await supabase.from("call_logs").insert([{
+      member_id: member.id,
+      caller_id: profile.id,
+      phone_number: member.phone_number,
+      call_timestamp: new Date().toISOString(),
+      outcome: null,
+    }]).select("id").single();
+
+    // 2. Open dialler
+    window.location.href = "tel:" + member.phone_number;
+
+    // 3. Show outcome banner (replaces any existing)
+    if (logRow) {
+      setCallBanner({
+        callLogId: logRow.id,
+        memberId: member.id,
+        memberName: member.full_name,
+      });
+    }
+  };
+
+  const handleCallOutcome = async (outcome: string) => {
+    if (!callBanner || !profile?.id) return;
+    // Update call_logs row
+    await supabase.from("call_logs").update({ outcome }).eq("id", callBanner.callLogId);
+
+    // Find & complete the most recent pending call task for this member
+    const pendingCallTask = tasks
+      .filter(t => t.member_id === callBanner.memberId && t.task_category === "call" && t.status === "pending")
+      .sort((a: any, b: any) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      })[0];
+
+    if (pendingCallTask) {
+      await supabase.from("follow_up_tasks").update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+        completed_by: profile.id,
+        call_outcome: outcome,
+        call_attempted: true,
+        call_timestamp: new Date().toISOString(),
+      }).eq("id", pendingCallTask.id);
+    }
+
+    toast.success("Call logged ✓");
+    setCallBanner(null);
+    fetchData();
+  };
 
   const handleMarkDone = async (task: any, outcome?: string) => {
     const updates: any = {
@@ -93,7 +237,6 @@ function CellLeaderView() {
 
     await supabase.from("follow_up_tasks").update(updates).eq("id", task.id);
 
-    // Log call if it's a call task
     if (task.task_category === "call") {
       const member = members.find(m => m.id === task.member_id);
       await supabase.from("call_logs").insert([{
@@ -113,11 +256,8 @@ function CellLeaderView() {
     fetchData();
   };
 
-  const statusDot = (s: "overdue" | "due_today" | "on_track") => {
-    if (s === "overdue") return "🔴";
-    if (s === "due_today") return "🟡";
-    return "🟢";
-  };
+  const statusDot = (s: "overdue" | "due_today" | "on_track") =>
+    s === "overdue" ? "🔴" : s === "due_today" ? "🟡" : "🟢";
 
   const taskStatusIcon = (status: string, dueDate: string | null) => {
     if (status === "verified") return "✅";
@@ -127,11 +267,17 @@ function CellLeaderView() {
     return "⭕";
   };
 
-  const allPendingTasks = tasks.filter(t => t.status === "pending").sort((a, b) => {
+  const allPendingTasks = tasks.filter(t => t.status === "pending").sort((a: any, b: any) => {
     if (!a.due_date) return 1;
     if (!b.due_date) return -1;
     return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
   });
+
+  // ── Call stats for the Calls tab ──
+  const thisWeekCalls = callLogs.filter(c => c.call_timestamp && new Date(c.call_timestamp) >= weekStart);
+  const answeredCount = thisWeekCalls.filter(c => c.outcome === "answered").length;
+  const noAnswerCount = thisWeekCalls.filter(c => c.outcome === "no_answer").length;
+  const callGroups = groupCallsByDate(callLogs);
 
   if (loading) return (
     <div className="space-y-4 p-4">
@@ -178,7 +324,7 @@ function CellLeaderView() {
                   className="glass-card rounded-2xl overflow-hidden"
                   onClick={() => setExpandedMember(isOpen ? null : m.id)}
                 >
-                  {/* Top row: avatar + name + week + status dot */}
+                  {/* Top row */}
                   <div className="p-4 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
                       {m.full_name?.charAt(0)}
@@ -198,15 +344,14 @@ function CellLeaderView() {
                     </div>
                   </div>
 
-                  {/* Middle row: CALL and WHATSAPP buttons */}
+                  {/* CALL and WHATSAPP buttons */}
                   <div className="flex gap-2 px-4 pb-3">
-                    <a
-                      href={`tel:${m.phone_number}`}
-                      onClick={(e) => { e.stopPropagation(); }}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCallButton(m); }}
                       className="flex-1 flex items-center justify-center gap-2 bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))] rounded-xl py-3 text-base font-bold active:opacity-70 transition-opacity"
                     >
                       <Phone className="h-5 w-5" /> 📞 CALL
-                    </a>
+                    </button>
                     <a
                       href={`https://wa.me/${(m.phone_number || "").replace(/^0/, "234")}`}
                       target="_blank"
@@ -279,31 +424,52 @@ function CellLeaderView() {
           </div>
         )}
 
-        {/* TAB: Calls */}
+        {/* TAB: Calls — PART 2: Rich call history */}
         {activeTab === "calls" && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h2 className="text-xl font-display font-bold text-foreground">Call History</h2>
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-3 gap-2">
+              <Card><CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold text-primary">{thisWeekCalls.length}</p>
+                <p className="text-xs text-muted-foreground">Calls This Week</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold text-[hsl(var(--success))]">{answeredCount}</p>
+                <p className="text-xs text-muted-foreground">Answered</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold text-warning">{noAnswerCount}</p>
+                <p className="text-xs text-muted-foreground">No Answer</p>
+              </CardContent></Card>
+            </div>
+
             {callLogs.length === 0 ? (
               <Card><CardContent className="p-8 text-center text-muted-foreground">
                 <Phone className="h-10 w-10 mx-auto mb-3 opacity-20" />
                 <p>No calls logged yet.</p>
               </CardContent></Card>
-            ) : callLogs.map(log => (
-              <Card key={log.id}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <span className="text-xl shrink-0">
-                    {log.outcome === "answered" || log.outcome === "Answered" ? "✅" : log.outcome === "no_answer" || log.outcome === "No Answer" ? "📵" : "🔄"}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate">{log.members?.full_name || "Unknown"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {log.call_timestamp ? format(new Date(log.call_timestamp), "MMM d, h:mm a") : ""}
-                      {log.duration_seconds ? ` · ${Math.round(log.duration_seconds / 60)} mins` : ""}
-                    </p>
-                    {log.note && <p className="text-xs text-muted-foreground mt-1">{log.note}</p>}
-                  </div>
-                </CardContent>
-              </Card>
+            ) : callGroups.map(group => (
+              <div key={group.label} className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">{group.label}</p>
+                {group.calls.map((log: any) => (
+                  <Card key={log.id}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                        {(log.members?.full_name || "?").charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground truncate">{log.members?.full_name || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">{formatCallTime(log.call_timestamp)}</p>
+                        <p className="text-xs text-muted-foreground/70">{log.phone_number}</p>
+                        {log.note && <p className="text-xs text-muted-foreground mt-1 italic">{log.note}</p>}
+                      </div>
+                      <div className="shrink-0">{outcomeBadge(log.outcome)}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -330,69 +496,35 @@ function CellLeaderView() {
         )}
       </div>
 
-      {/* Task completion — fixed bottom panel (plain div, no library) */}
+      {/* Task completion — fixed bottom panel */}
       {taskDialog && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60" />
-          {/* Panel */}
-          <div
-            className="relative bg-card border-t border-border rounded-t-2xl p-6 pb-8 space-y-4 max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button */}
-            <button
-              className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"
-              onClick={() => { setTaskDialog(null); setTaskNote(""); }}
-            >
+          <div className="relative bg-card border-t border-border rounded-t-2xl p-6 pb-8 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <button className="absolute top-4 right-4 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={() => { setTaskDialog(null); setTaskNote(""); }}>
               <X className="h-5 w-5" />
             </button>
-
             <div className="flex items-center gap-3 pr-8">
               <span className="text-3xl">{taskDialog.task_emoji || "📋"}</span>
               <p className="text-lg font-bold text-foreground">{taskDialog.task_name}</p>
             </div>
-
             {taskDialog.task_category === "call" ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">How did the call go?</p>
-                <button
-                  className="w-full h-14 rounded-xl gradient-primary text-primary-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
-                  onClick={() => handleMarkDone(taskDialog, "answered")}
-                >
-                  ✅ Answered
-                </button>
-                <button
-                  className="w-full h-14 rounded-xl border border-border bg-secondary text-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
-                  onClick={() => handleMarkDone(taskDialog, "no_answer")}
-                >
-                  📵 No Answer
-                </button>
-                <button
-                  className="w-full h-14 rounded-xl border border-border bg-secondary text-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80"
-                  onClick={() => handleMarkDone(taskDialog, "will_retry")}
-                >
-                  🔄 Will Retry
-                </button>
+                <button className="w-full h-14 rounded-xl gradient-primary text-primary-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80" onClick={() => handleMarkDone(taskDialog, "answered")}>✅ Answered</button>
+                <button className="w-full h-14 rounded-xl border border-border bg-secondary text-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80" onClick={() => handleMarkDone(taskDialog, "no_answer")}>📵 No Answer</button>
+                <button className="w-full h-14 rounded-xl border border-border bg-secondary text-foreground text-base font-bold flex items-center justify-center gap-2 active:opacity-80" onClick={() => handleMarkDone(taskDialog, "will_retry")}>🔄 Will Retry</button>
               </div>
             ) : (
-              <button
-                className="w-full h-14 rounded-xl bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-lg font-bold flex items-center justify-center gap-2 active:opacity-80"
-                onClick={() => handleMarkDone(taskDialog)}
-              >
-                ✅ Mark as Done
-              </button>
+              <button className="w-full h-14 rounded-xl bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-lg font-bold flex items-center justify-center gap-2 active:opacity-80" onClick={() => handleMarkDone(taskDialog)}>✅ Mark as Done</button>
             )}
-
-            <Textarea
-              placeholder="Optional note..."
-              value={taskNote}
-              onChange={e => setTaskNote(e.target.value)}
-              className="min-h-[80px]"
-            />
+            <Textarea placeholder="Optional note..." value={taskNote} onChange={e => setTaskNote(e.target.value)} className="min-h-[80px]" />
           </div>
         </div>
       )}
+
+      {/* Call outcome banner */}
+      <CallOutcomeBanner banner={callBanner} onDismiss={() => setCallBanner(null)} onOutcome={handleCallOutcome} />
 
       {/* Bottom tab bar */}
       <div className="fixed bottom-0 left-0 right-0 glass-navbar z-40 flex justify-around py-2 px-2 safe-area-bottom">
@@ -424,21 +556,22 @@ function StaffView() {
   const [members, setMembers] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [cellLeaders, setCellLeaders] = useState<any[]>([]);
+  const [allCallLogs, setAllCallLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectDialog, setRejectDialog] = useState<any>(null);
   const [rejectionNote, setRejectionNote] = useState("");
   const [leaderFilter, setLeaderFilter] = useState<string | null>(null);
+  const [callLeaderFilter, setCallLeaderFilter] = useState<string>("all");
 
   const fetchData = useCallback(async () => {
     const [tasksRes, membersRes, profilesRes, leadersRes] = await Promise.all([
       supabase.from("follow_up_tasks").select("*"),
       supabase.from("members").select("id, full_name, phone_number, assigned_follow_up_leader, organization_id").in("status", ["First Timer", "Second Timer", "New Convert"]),
-      supabase.from("profiles").select("id, full_name, organization_id"),
+      supabase.from("profiles").select("id, user_id, full_name, organization_id"),
       supabase.from("user_roles").select("user_id, role").eq("role", "cell_leader"),
     ]);
 
     let filteredMembers = membersRes.data || [];
-    // Scope by org for non-king-admin
     if (role !== "king_admin" && role !== "admin" && organizationId) {
       filteredMembers = filteredMembers.filter(m => m.organization_id === organizationId);
     }
@@ -449,20 +582,26 @@ function StaffView() {
     setTasks(filteredTasks);
     setProfiles(profilesRes.data || []);
 
-    // Build cell leaders list
     const leaderUserIds = (leadersRes.data || []).map(l => l.user_id);
-    const leaderProfiles = (profilesRes.data || []).filter(p => leaderUserIds.includes(p.id) || leaderUserIds.some((uid: string) => {
-      const prof = (profilesRes.data || []).find((pp: any) => pp.id === p.id);
-      return false; // we match by user_id below
-    }));
-    // Match profiles where user_id is in leaderUserIds - but profiles use user_id field
-    // Actually profiles table has user_id column, let's re-fetch with it
     const { data: leaderProfilesData } = await supabase.from("profiles").select("id, user_id, full_name, organization_id").in("user_id", leaderUserIds);
     let scopedLeaders = leaderProfilesData || [];
     if (role !== "king_admin" && role !== "admin" && organizationId) {
       scopedLeaders = scopedLeaders.filter(l => l.organization_id === organizationId);
     }
     setCellLeaders(scopedLeaders);
+
+    // Fetch ALL call logs for scoped cell leaders
+    const leaderProfileIds = scopedLeaders.map(l => l.id);
+    if (leaderProfileIds.length > 0) {
+      const { data: callData } = await supabase
+        .from("call_logs")
+        .select("*, members(full_name, phone_number)")
+        .in("caller_id", leaderProfileIds)
+        .order("call_timestamp", { ascending: false })
+        .limit(200);
+      setAllCallLogs(callData || []);
+    }
+
     setLoading(false);
   }, [role, organizationId]);
 
@@ -494,8 +633,6 @@ function StaffView() {
       rejected_by: profile?.id,
       rejection_note: rejectionNote,
     }).eq("id", rejectDialog.id);
-
-    // Send notification to cell leader
     if (rejectDialog.completed_by) {
       const member = members.find(m => m.id === rejectDialog.member_id);
       await supabase.from("notifications").insert([{
@@ -504,7 +641,6 @@ function StaffView() {
         message: `"${rejectDialog.task_name}" for ${member?.full_name || "a member"} was rejected. Reason: ${rejectionNote || "No reason given"}`,
       }]);
     }
-
     toast.success("Task rejected");
     setRejectDialog(null);
     setRejectionNote("");
@@ -515,7 +651,6 @@ function StaffView() {
     if (!profileId) return "Unknown";
     return profiles.find(p => p.id === profileId)?.full_name || "Unknown";
   };
-
   const getMemberName = (memberId: string) => members.find(m => m.id === memberId)?.full_name || "Unknown";
 
   const filteredVerification = leaderFilter
@@ -525,6 +660,7 @@ function StaffView() {
       })
     : pendingVerification;
 
+  // ── PART 4: leader stats with call data ──
   const getLeaderStats = (leaderId: string) => {
     const leaderMembers = members.filter(m => m.assigned_follow_up_leader === leaderId);
     const leaderMemberIds = new Set(leaderMembers.map(m => m.id));
@@ -532,13 +668,27 @@ function StaffView() {
     const thisWeekTasks = leaderTasks.filter(t => t.due_date && new Date(t.due_date) >= weekStart && new Date(t.due_date) <= now);
     const completedThisWeek = thisWeekTasks.filter(t => t.status === "verified" || t.status === "done");
     const total = thisWeekTasks.length || 1;
+
+    // Call stats
+    const leaderCalls = allCallLogs.filter(c => c.caller_id === leaderId);
+    const callsThisWeek = leaderCalls.filter(c => c.call_timestamp && new Date(c.call_timestamp) >= weekStart);
+    const lastCall = leaderCalls[0]; // already sorted desc
+
     return {
       assigned: leaderMembers.length,
       completed: completedThisWeek.length,
       total: thisWeekTasks.length,
       pct: Math.round((completedThisWeek.length / total) * 100),
+      callsThisWeek: callsThisWeek.length,
+      lastCallTime: lastCall?.call_timestamp || null,
     };
   };
+
+  // ── PART 3: filtered call logs for staff ──
+  const filteredCallLogs = callLeaderFilter === "all"
+    ? allCallLogs
+    : allCallLogs.filter(c => c.caller_id === callLeaderFilter);
+  const staffCallGroups = groupCallsByDate(filteredCallLogs);
 
   if (loading) return (
     <div className="space-y-4">
@@ -563,7 +713,7 @@ function StaffView() {
         ].map((s, i) => (
           <Card key={i}>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl bg-secondary flex items-center justify-center shrink-0`}>
+              <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
                 <s.icon className={`h-5 w-5 ${s.color}`} />
               </div>
               <div>
@@ -644,7 +794,7 @@ function StaffView() {
         </Card>
       )}
 
-      {/* Cell Leaders Overview */}
+      {/* Cell Leaders Overview — PART 4: with call stats */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
@@ -670,6 +820,15 @@ function StaffView() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground text-sm truncate">{leader.full_name}</p>
                   <p className="text-xs text-muted-foreground">{stats.assigned} members · {stats.completed}/{stats.total} tasks</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">📞 {stats.callsThisWeek} calls this week</span>
+                    <span className="text-xs">·</span>
+                    {stats.lastCallTime ? (
+                      <span className="text-xs text-muted-foreground">Last: {formatDistanceToNow(new Date(stats.lastCallTime), { addSuffix: true })}</span>
+                    ) : (
+                      <span className="text-xs text-destructive font-semibold">No calls yet</span>
+                    )}
+                  </div>
                   <div className="h-1.5 rounded-full bg-secondary mt-1.5 overflow-hidden">
                     <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${stats.pct}%` }} />
                   </div>
@@ -680,6 +839,55 @@ function StaffView() {
               </button>
             );
           })}
+        </CardContent>
+      </Card>
+
+      {/* PART 3: Call Logs section for staff */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5 text-primary" />
+            📞 Call Logs
+            <Badge variant="secondary" className="ml-2">{filteredCallLogs.length}</Badge>
+          </CardTitle>
+          <div className="mt-2">
+            <Select value={callLeaderFilter} onValueChange={setCallLeaderFilter}>
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="All Cell Leaders" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cell Leaders</SelectItem>
+                {cellLeaders.map(l => (
+                  <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {filteredCallLogs.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6">No call logs found.</p>
+          ) : staffCallGroups.map(group => (
+            <div key={group.label} className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</p>
+              {group.calls.map((log: any) => (
+                <div key={log.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
+                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                    {(log.members?.full_name || "?").charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{log.members?.full_name || "Unknown"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      by <span className="font-medium">{getProfileName(log.caller_id)}</span> · {formatCallTime(log.call_timestamp)}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">{log.phone_number}</p>
+                    {log.note && <p className="text-xs text-muted-foreground italic mt-0.5">{log.note}</p>}
+                  </div>
+                  <div className="shrink-0">{outcomeBadge(log.outcome)}</div>
+                </div>
+              ))}
+            </div>
+          ))}
         </CardContent>
       </Card>
 
@@ -695,14 +903,8 @@ function StaffView() {
             <p className="text-sm text-muted-foreground">
               Rejecting "{rejectDialog?.task_name}" — the cell leader will be notified.
             </p>
-            <Textarea
-              placeholder="Reason for rejection..."
-              value={rejectionNote}
-              onChange={e => setRejectionNote(e.target.value)}
-            />
-            <Button variant="destructive" className="w-full" onClick={handleReject}>
-              Reject Task
-            </Button>
+            <Textarea placeholder="Reason for rejection..." value={rejectionNote} onChange={e => setRejectionNote(e.target.value)} />
+            <Button variant="destructive" className="w-full" onClick={handleReject}>Reject Task</Button>
           </div>
         </DialogContent>
       </Dialog>
