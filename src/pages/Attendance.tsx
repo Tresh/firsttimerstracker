@@ -200,7 +200,9 @@ export default function Attendance() {
         <Card><CardContent className="p-4 text-center">
           <Church className="h-5 w-5 mx-auto text-primary mb-1" />
           <p className="text-xs text-muted-foreground">Today's Service</p>
-          <p className="text-sm font-bold text-foreground truncate">{todayService?.title || todayService?.service_name || "No service today"}</p>
+         <p className="text-sm font-bold text-foreground truncate">
+           {todayService ? (isUpcoming ? `📅 ${todayService.title || todayService.service_name} (${todayService.service_date})` : (todayService.title || todayService.service_name)) : "No service today"}
+         </p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <Users className="h-5 w-5 mx-auto text-primary mb-1" />
