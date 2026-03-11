@@ -279,10 +279,12 @@ export default function Attendance() {
           <CardContent className="space-y-4">
             {!todayService.qr_active ? (
               <div className="text-center py-6">
-                <p className="text-muted-foreground mb-4">QR Check-In is not active yet</p>
+                <p className="text-muted-foreground mb-4">
+                  {isUpcoming ? "This service is scheduled for a future date. You can open QR early for testing." : "QR Check-In is not active yet"}
+                </p>
                 {isAdmin && (
                   <Button onClick={openQR} className="bg-success hover:bg-success/90 text-success-foreground h-12 px-8 text-base">
-                    📱 Open QR Check-In
+                    {isUpcoming ? "🔓 Open QR Early" : "📱 Open QR Check-In"}
                   </Button>
                 )}
               </div>
