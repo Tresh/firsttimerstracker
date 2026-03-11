@@ -222,7 +222,7 @@ export default function Attendance() {
       </div>
 
       {/* SECTION 2: Create Service */}
-      {isAdmin && !todayService && (
+      {isAdmin && !todayService && !isUpcoming && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>⛪ Today's Service</CardTitle>
