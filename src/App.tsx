@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import EmpTracker from "./pages/EmpTracker";
 import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
+import AttendScan from "./pages/AttendScan";
 import FSScan from "./pages/FSScan";
 import AdminUsers from "./pages/AdminUsers";
 import ChangePassword from "./pages/ChangePassword";
@@ -46,8 +47,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/attend" element={<AttendanceScan />} />
-            <Route path="/fs-scan" element={<FSScan />} />
+            <Route path="/attend" element={<AttendScan />} />
+            <Route path="/attend-legacy" element={<AttendanceScan />} />
             <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/welcome-desk" element={
