@@ -270,10 +270,11 @@ export default function Attendance() {
       {todayService && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
-              {todayService.title || todayService.service_name} — {todayService.service_date}
+          <CardTitle className="flex items-center gap-2">
+              {isUpcoming ? "📅" : <QrCode className="h-5 w-5" />}
+              {isUpcoming ? "Upcoming Service" : (todayService.title || todayService.service_name)} — {todayService.service_date}
             </CardTitle>
+            {isUpcoming && <p className="text-sm text-muted-foreground">{todayService.title || todayService.service_name}</p>}
           </CardHeader>
           <CardContent className="space-y-4">
             {!todayService.qr_active ? (
