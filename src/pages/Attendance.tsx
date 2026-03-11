@@ -49,15 +49,28 @@ export default function Attendance() {
   const [filterType, setFilterType] = useState("all");
 
   const today = new Date().toISOString().split("T")[0];
+  const [isUpcoming, setIsUpcoming] = useState(false);
 
   const fetchTodayService = useCallback(async () => {
-    const query = supabase.from("services").select("*").eq("service_date", today).order("created_at", { ascending: false }).limit(1);
-    const { data } = await query;
+    // First try today
+    const { data } = await supabase.from("services").select("*").eq("service_date", today).order("created_at", { ascending: false }).limit(1);
     if (data && data.length > 0) {
       setTodayService(data[0]);
+      setIsUpcoming(false);
       return data[0];
     }
+    // If no today service, look ahead 7 days
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekStr = nextWeek.toISOString().split("T")[0];
+    const { data: upcoming } = await supabase.from("services").select("*").gt("service_date", today).lte("service_date", nextWeekStr).order("service_date", { ascending: true }).limit(1);
+    if (upcoming && upcoming.length > 0) {
+      setTodayService(upcoming[0]);
+      setIsUpcoming(true);
+      return upcoming[0];
+    }
     setTodayService(null);
+    setIsUpcoming(false);
     return null;
   }, [today]);
 
