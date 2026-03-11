@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import EmpTracker from "./pages/EmpTracker";
 import WelcomeDesk from "./pages/WelcomeDesk";
 import AttendanceScan from "./pages/AttendanceScan";
+import AttendScan from "./pages/AttendScan";
 import FSScan from "./pages/FSScan";
 import AdminUsers from "./pages/AdminUsers";
 import ChangePassword from "./pages/ChangePassword";
