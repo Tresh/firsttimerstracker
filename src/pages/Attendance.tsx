@@ -49,15 +49,28 @@ export default function Attendance() {
   const [filterType, setFilterType] = useState("all");
 
   const today = new Date().toISOString().split("T")[0];
+  const [isUpcoming, setIsUpcoming] = useState(false);
 
   const fetchTodayService = useCallback(async () => {
-    const query = supabase.from("services").select("*").eq("service_date", today).order("created_at", { ascending: false }).limit(1);
-    const { data } = await query;
+    // First try today
+    const { data } = await supabase.from("services").select("*").eq("service_date", today).order("created_at", { ascending: false }).limit(1);
     if (data && data.length > 0) {
       setTodayService(data[0]);
+      setIsUpcoming(false);
       return data[0];
     }
+    // If no today service, look ahead 7 days
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekStr = nextWeek.toISOString().split("T")[0];
+    const { data: upcoming } = await supabase.from("services").select("*").gt("service_date", today).lte("service_date", nextWeekStr).order("service_date", { ascending: true }).limit(1);
+    if (upcoming && upcoming.length > 0) {
+      setTodayService(upcoming[0]);
+      setIsUpcoming(true);
+      return upcoming[0];
+    }
     setTodayService(null);
+    setIsUpcoming(false);
     return null;
   }, [today]);
 
@@ -187,7 +200,9 @@ export default function Attendance() {
         <Card><CardContent className="p-4 text-center">
           <Church className="h-5 w-5 mx-auto text-primary mb-1" />
           <p className="text-xs text-muted-foreground">Today's Service</p>
-          <p className="text-sm font-bold text-foreground truncate">{todayService?.title || todayService?.service_name || "No service today"}</p>
+         <p className="text-sm font-bold text-foreground truncate">
+           {todayService ? (isUpcoming ? `📅 ${todayService.title || todayService.service_name} (${todayService.service_date})` : (todayService.title || todayService.service_name)) : "No service today"}
+         </p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <Users className="h-5 w-5 mx-auto text-primary mb-1" />
@@ -207,7 +222,7 @@ export default function Attendance() {
       </div>
 
       {/* SECTION 2: Create Service */}
-      {isAdmin && !todayService && (
+      {isAdmin && !todayService && !isUpcoming && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>⛪ Today's Service</CardTitle>
@@ -255,18 +270,21 @@ export default function Attendance() {
       {todayService && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
-              {todayService.title || todayService.service_name} — {todayService.service_date}
+          <CardTitle className="flex items-center gap-2">
+              {isUpcoming ? "📅" : <QrCode className="h-5 w-5" />}
+              {isUpcoming ? "Upcoming Service" : (todayService.title || todayService.service_name)} — {todayService.service_date}
             </CardTitle>
+            {isUpcoming && <p className="text-sm text-muted-foreground">{todayService.title || todayService.service_name}</p>}
           </CardHeader>
           <CardContent className="space-y-4">
             {!todayService.qr_active ? (
               <div className="text-center py-6">
-                <p className="text-muted-foreground mb-4">QR Check-In is not active yet</p>
+                <p className="text-muted-foreground mb-4">
+                  {isUpcoming ? "This service is scheduled for a future date. You can open QR early for testing." : "QR Check-In is not active yet"}
+                </p>
                 {isAdmin && (
                   <Button onClick={openQR} className="bg-success hover:bg-success/90 text-success-foreground h-12 px-8 text-base">
-                    📱 Open QR Check-In
+                    {isUpcoming ? "🔓 Open QR Early" : "📱 Open QR Check-In"}
                   </Button>
                 )}
               </div>
